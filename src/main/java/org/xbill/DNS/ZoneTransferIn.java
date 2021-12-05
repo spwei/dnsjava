@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2003-2004 Brian Wellington (bwelling@xbill.org)
 // Parts of this are derived from lib/dns/xfrin.c from BIND 9; its copyright
 // notice follows.
@@ -60,7 +61,7 @@ public class ZoneTransferIn {
   private TCPClient client;
   private TSIG tsig;
   private TSIG.StreamVerifier verifier;
-  private long timeout = 900 * 1000;
+  private Duration timeout = Duration.ofMinutes(15);
 
   private int state;
   private long end_serial;
@@ -297,7 +298,7 @@ public class ZoneTransferIn {
     if (secs < 0) {
       throw new IllegalArgumentException("timeout cannot be negative");
     }
-    timeout = 1000L * secs;
+    timeout = Duration.ofSeconds(secs);
   }
 
   /**
@@ -306,7 +307,7 @@ public class ZoneTransferIn {
    * @param t The maximum amount of time that this zone transfer can take.
    */
   public void setTimeout(Duration t) {
-    timeout = (int) t.toMillis();
+    timeout = t;
   }
 
   /**

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -267,7 +268,7 @@ public abstract class Record implements Cloneable, Comparable<Record> {
   }
 
   /**
-   * Converts the type-specific RR to text format - must be overriden.
+   * Converts the type-specific RR to text format - must be overridden.
    *
    * @since 3.1
    */
@@ -517,7 +518,7 @@ public abstract class Record implements Cloneable, Comparable<Record> {
   }
 
   /**
-   * Converts the type-specific RR to wire format - must be overriden
+   * Converts the type-specific RR to wire format - must be overridden.
    *
    * @since 3.1
    */

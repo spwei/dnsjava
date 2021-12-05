@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 package org.xbill.DNS.tools;
 
@@ -145,7 +146,7 @@ public class jnamed {
       }
       System.out.println("jnamed: running");
     } finally {
-      fs.close();
+      br.close();
     }
   }
 
@@ -552,19 +553,11 @@ public class jnamed {
   }
 
   public void serveTCP(InetAddress addr, int port) {
-    try {
-      ServerSocket sock = new ServerSocket(port, 128, addr);
+    try (ServerSocket sock = new ServerSocket(port, 128, addr)) {
       while (true) {
         final Socket s = sock.accept();
         Thread t;
-        t =
-            new Thread(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    TCPclient(s);
-                  }
-                });
+        t = new Thread(() -> TCPclient(s));
         t.start();
       }
     } catch (IOException e) {
@@ -573,8 +566,7 @@ public class jnamed {
   }
 
   public void serveUDP(InetAddress addr, int port) {
-    try {
-      DatagramSocket sock = new DatagramSocket(port, addr);
+    try (DatagramSocket sock = new DatagramSocket(port, addr)) {
       final short udpLength = 512;
       byte[] in = new byte[udpLength];
       DatagramPacket indp = new DatagramPacket(in, in.length);
@@ -613,28 +605,12 @@ public class jnamed {
   }
 
   public void addTCP(final InetAddress addr, final int port) {
-    Thread t;
-    t =
-        new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
-                serveTCP(addr, port);
-              }
-            });
+    Thread t = new Thread(() -> serveTCP(addr, port));
     t.start();
   }
 
   public void addUDP(final InetAddress addr, final int port) {
-    Thread t;
-    t =
-        new Thread(
-            new Runnable() {
-              @Override
-              public void run() {
-                serveUDP(addr, port);
-              }
-            });
+    Thread t = new Thread(() -> serveUDP(addr, port));
     t.start();
   }
 

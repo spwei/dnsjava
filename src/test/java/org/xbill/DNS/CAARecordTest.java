@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,17 +18,11 @@ class CAARecordTest {
     assertEquals("", record.getTag());
     assertEquals("", record.getValue());
 
+    String data = new String(new char[256]);
     IllegalArgumentException thrown =
         assertThrows(
             IllegalArgumentException.class,
-            () ->
-                new CAARecord(
-                    n,
-                    DClass.IN,
-                    0xABCDEL,
-                    CAARecord.Flags.IssuerCritical,
-                    new String(new char[256]),
-                    ""));
+            () -> new CAARecord(n, DClass.IN, 0xABCDEL, CAARecord.Flags.IssuerCritical, data, ""));
     assertEquals("text string too long", thrown.getMessage());
   }
 

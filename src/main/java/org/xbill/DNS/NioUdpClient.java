@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS;
 
 import java.io.EOFException;
@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @UtilityClass
-final class NioUdpClient extends Client {
+final class NioUdpClient extends NioClient {
   private static final int EPHEMERAL_START;
   private static final int EPHEMERAL_RANGE;
 
@@ -99,6 +99,7 @@ final class NioUdpClient extends Client {
       }
     }
 
+    @Override
     public void processReadyKey(SelectionKey key) {
       if (!key.isReadable()) {
         silentCloseChannel();
@@ -138,9 +139,14 @@ final class NioUdpClient extends Client {
     private void silentCloseChannel() {
       try {
         channel.disconnect();
-        channel.close();
       } catch (IOException e) {
         // ignore, we either already have everything we need or can't do anything
+      } finally {
+        try {
+          channel.close();
+        } catch (IOException e) {
+          // ignore
+        }
       }
     }
   }

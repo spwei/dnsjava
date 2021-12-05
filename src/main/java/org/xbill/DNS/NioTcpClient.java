@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS;
 
 import java.io.EOFException;
@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @UtilityClass
-final class NioTcpClient extends Client {
+final class NioTcpClient extends NioClient {
   private static final Queue<ChannelState> registrationQueue = new ConcurrentLinkedQueue<>();
   private static final Map<ChannelKey, ChannelState> channelMap = new ConcurrentHashMap<>();
 
@@ -114,8 +114,9 @@ final class NioTcpClient extends Client {
     ByteBuffer responseData = ByteBuffer.allocate(Message.MAXLENGTH);
     int readState = 0;
 
+    @Override
     public void processReadyKey(SelectionKey key) {
-      if (key.isValid())
+      if (key.isValid()) {
         if (key.isConnectable()) {
           processConnect(key);
         } else {
@@ -126,6 +127,7 @@ final class NioTcpClient extends Client {
             processRead();
           }
         }
+      }
     }
 
     void handleTransactionException(IOException e) {

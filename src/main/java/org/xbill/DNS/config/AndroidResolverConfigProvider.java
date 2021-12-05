@@ -1,12 +1,10 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS.config;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.LinkProperties;
 import android.net.Network;
-import android.os.Build;
-import android.os.SystemProperties;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import lombok.extern.slf4j.Slf4j;
@@ -33,28 +31,7 @@ public class AndroidResolverConfigProvider extends BaseResolverConfigProvider {
 
   @Override
   public void initialize() throws InitializationException {
-    // This originally looked for all lines containing .dns; but
-    // http://code.google.com/p/android/issues/detail?id=2207#c73 indicates
-    // that net.dns* should always be the active nameservers, so we use those.
-    // Starting with Android 8 (API 26), the net.dns[1234] properties are no longer available:
-    // https://developer.android.com/about/versions/oreo/android-8.0-changes.html#o-pri
-    if (Build.VERSION.SDK_INT >= 26) {
-      initializeApi26Nameservers();
-    } else {
-      initializeNameservers();
-    }
-  }
-
-  private void initializeNameservers() {
-    for (int i = 1; i <= 4; i++) {
-      String server = SystemProperties.get("net.dns" + i);
-      if (server != null && !server.isEmpty()) {
-        addNameserver(new InetSocketAddress(server, SimpleResolver.DEFAULT_PORT));
-      }
-    }
-  }
-
-  private void initializeApi26Nameservers() throws InitializationException {
+    reset();
     if (context == null) {
       throw new InitializationException("Context must be initialized by calling setContext");
     }

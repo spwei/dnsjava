@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -35,7 +36,11 @@ public class TSIG {
   /** The domain name representing the HMAC-MD5 algorithm. */
   public static final Name HMAC_MD5 = Name.fromConstantString("HMAC-MD5.SIG-ALG.REG.INT.");
 
-  /** The domain name representing the HMAC-MD5 algorithm (deprecated). */
+  /**
+   * The domain name representing the HMAC-MD5 algorithm.
+   *
+   * @deprecated use {@link #HMAC_MD5}
+   */
   @Deprecated public static final Name HMAC = HMAC_MD5;
 
   /** The domain name representing the HMAC-SHA1 algorithm. */
@@ -66,15 +71,51 @@ public class TSIG {
     algMap = Collections.unmodifiableMap(out);
   }
 
+  /**
+   * Convert an algorithm String to its equivalent Name.
+   *
+   * @param alg String containing name of algorithm.
+   * @return Name object for algorithm
+   * @throws IllegalArgumentException The algorithm is null or invalid.
+   */
   public static Name algorithmToName(String alg) {
-    for (Map.Entry<Name, String> entry : algMap.entrySet()) {
-      if (alg.equalsIgnoreCase(entry.getValue())) {
-        return entry.getKey();
-      }
+    if (alg == null) {
+      throw new IllegalArgumentException("Null algorithm");
     }
-    throw new IllegalArgumentException("Unknown algorithm: " + alg);
+
+    // Special case.  Allow "HMAC-MD5" as an alias
+    // for the RFC name.
+    if (alg.equalsIgnoreCase("HMAC-MD5") || alg.equalsIgnoreCase("HMAC-MD5.")) {
+      return HMAC_MD5;
+    }
+
+    // Search through the RFC Names in the map and match
+    // if the algorithm name with or without the trailing dot.
+    // The match is case-insensitive.
+    return algMap.keySet().stream()
+        .filter(n -> n.toString().equalsIgnoreCase(alg) || n.toString(true).equalsIgnoreCase(alg))
+        .findAny()
+        .orElseGet(
+            () ->
+                // Did not find an RFC name, so fall through
+                // and try the java names in the value of each
+                // entry.  If not found after all this, then
+                // throw an exception.
+                algMap.entrySet().stream()
+                    .filter(e -> e.getValue().equalsIgnoreCase(alg))
+                    .map(Map.Entry::getKey)
+                    .findAny()
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown algorithm: " + alg)));
   }
 
+  /**
+   * Convert an algorithm Name to a string.
+   *
+   * @param name Name object
+   * @return String equivalent
+   * @deprecated Returns java algorithm name, will be made private in 4.0
+   */
+  @Deprecated
   public static String nameToAlgorithm(Name name) {
     String alg = algMap.get(name);
     if (alg != null) {
@@ -89,7 +130,9 @@ public class TSIG {
   private final Name alg;
   private final Clock clock;
   private final Name name;
-  private final Mac hmac;
+  private final SecretKey macKey;
+  private final String macAlgorithm;
+  private final Mac sharedHmac;
 
   /**
    * Verifies the data (computes the secure hash and compares it to the input)
@@ -107,10 +150,19 @@ public class TSIG {
     return Arrays.equals(signature, expected);
   }
 
-  private Mac initHmac(String macAlgorithm, SecretKey key) {
+  private Mac initHmac() {
+    if (sharedHmac != null) {
+      try {
+        return (Mac) sharedHmac.clone();
+      } catch (CloneNotSupportedException e) {
+        sharedHmac.reset();
+        return sharedHmac;
+      }
+    }
+
     try {
       Mac mac = Mac.getInstance(macAlgorithm);
-      mac.init(key);
+      mac.init(macKey);
       return mac;
     } catch (GeneralSecurityException ex) {
       throw new IllegalArgumentException("Caught security exception setting up HMAC.", ex);
@@ -139,12 +191,7 @@ public class TSIG {
    * @param keyBytes The shared key's data.
    */
   public TSIG(Name algorithm, Name name, byte[] keyBytes) {
-    this.name = name;
-    this.alg = algorithm;
-    this.clock = Clock.systemUTC();
-    String macAlgorithm = nameToAlgorithm(algorithm);
-    SecretKey key = new SecretKeySpec(keyBytes, macAlgorithm);
-    this.hmac = initHmac(macAlgorithm, key);
+    this(algorithm, name, new SecretKeySpec(keyBytes, nameToAlgorithm(algorithm)));
   }
 
   /**
@@ -170,8 +217,9 @@ public class TSIG {
     this.name = name;
     this.alg = algorithm;
     this.clock = clock;
-    String macAlgorithm = nameToAlgorithm(algorithm);
-    this.hmac = initHmac(macAlgorithm, key);
+    this.macAlgorithm = nameToAlgorithm(algorithm);
+    this.macKey = key;
+    this.sharedHmac = null;
   }
 
   /**
@@ -180,10 +228,14 @@ public class TSIG {
    *
    * @param mac The JCE HMAC object
    * @param name The name of the key
+   * @deprecated Use one of the constructors that specifies an algorithm and key.
    */
+  @Deprecated
   public TSIG(Mac mac, Name name) {
     this.name = name;
-    this.hmac = mac;
+    this.sharedHmac = mac;
+    this.macAlgorithm = null;
+    this.macKey = null;
     this.clock = Clock.systemUTC();
     this.alg = algorithmToName(mac.getAlgorithm());
   }
@@ -196,6 +248,7 @@ public class TSIG {
    * @param key The shared key's data.
    * @deprecated Use {@link #TSIG(Name, Name, SecretKey)} to explicitly specify an algorithm.
    */
+  @Deprecated
   public TSIG(Name name, byte[] key) {
     this(HMAC_MD5, name, key);
   }
@@ -220,19 +273,30 @@ public class TSIG {
     }
     this.alg = algorithm;
     this.clock = Clock.systemUTC();
-    String macAlgorithm = nameToAlgorithm(this.alg);
-    this.hmac = initHmac(macAlgorithm, new SecretKeySpec(keyBytes, macAlgorithm));
+    this.macAlgorithm = nameToAlgorithm(algorithm);
+    this.sharedHmac = null;
+    this.macKey = new SecretKeySpec(keyBytes, macAlgorithm);
   }
 
   /**
    * Creates a new TSIG object, which can be used to sign or verify a message.
    *
+   * @param algorithm The RFC8945 algorithm name of the shared key. The legal values are:
+   *     <ul>
+   *       <li>hmac-md5.sig-alg.reg.int.
+   *       <li>hmac-md5. (alias for hmac-md5.sig-alg.reg.int.)
+   *       <li>hmac-sha1.
+   *       <li>hmac-sha224.
+   *       <li>hmac-sha256.
+   *       <li>hmac-sha384.
+   *       <li>hmac-sha512.
+   *     </ul>
+   *     The trailing &quot;.&quot; can be omitted.
    * @param name The name of the shared key.
-   * @param algorithm The algorithm of the shared key. The legal values are "hmac-md5", "hmac-sha1",
-   *     "hmac-sha224", "hmac-sha256", "hmac-sha384", and "hmac-sha512".
    * @param key The shared key's data represented as a base64 encoded string.
    * @throws IllegalArgumentException The key name is an invalid name
    * @throws IllegalArgumentException The key data is improperly encoded
+   * @see RFC8945
    */
   public TSIG(String algorithm, String name, String key) {
     this(algorithmToName(algorithm), name, key);
@@ -248,6 +312,7 @@ public class TSIG {
    * @throws IllegalArgumentException The key data is improperly encoded
    * @deprecated Use {@link #TSIG(Name, String, String)} to explicitly specify an algorithm.
    */
+  @Deprecated
   public TSIG(String name, String key) {
     this(HMAC_MD5, name, key);
   }
@@ -262,6 +327,7 @@ public class TSIG {
    * @throws IllegalArgumentException The key data is improperly encoded
    * @deprecated Use an explicit constructor
    */
+  @Deprecated
   public static TSIG fromString(String str) {
     String[] parts = str.split("[:/]", 3);
     switch (parts.length) {
@@ -311,9 +377,10 @@ public class TSIG {
     }
 
     boolean signing = false;
+    Mac hmac = null;
     if (error == Rcode.NOERROR || error == Rcode.BADTIME || error == Rcode.BADTRUNC) {
       signing = true;
-      hmac.reset();
+      hmac = initHmac();
     }
 
     Duration fudge;
@@ -445,6 +512,7 @@ public class TSIG {
    *     subsequent messages with reduced TSIG variables set (rfc2845, 4.4.).
    * @deprecated use {@link #apply(Message, TSIGRecord, boolean)}
    */
+  @Deprecated
   public void applyStream(Message m, TSIGRecord old, boolean fullSignature) {
     apply(m, Rcode.NOERROR, old, fullSignature);
   }
@@ -520,7 +588,7 @@ public class TSIG {
       return Rcode.BADKEY;
     }
 
-    hmac.reset();
+    Mac hmac = initHmac();
     if (old != null && tsig.getError() != Rcode.BADKEY && tsig.getError() != Rcode.BADSIG) {
       hmacAddSignature(hmac, old);
     }

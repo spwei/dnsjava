@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,12 +15,12 @@ import org.junit.jupiter.api.Test;
 import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.IPSECKEYRecord.Algorithm;
 
-public class HIPRecordTest {
-  private Name exampleCom = Name.fromConstantString("www.example.com.");
-  private Name rvs = Name.fromConstantString("rvs.example.com.");
-  private Name rvs1 = Name.fromConstantString("rvs1.example.com.");
-  private Name rvs2 = Name.fromConstantString("rvs2.example.com.");
-  private List<Name> servers = new ArrayList<>();
+class HIPRecordTest {
+  private final Name exampleCom = Name.fromConstantString("www.example.com.");
+  private final Name rvs = Name.fromConstantString("rvs.example.com.");
+  private final Name rvs1 = Name.fromConstantString("rvs1.example.com.");
+  private final Name rvs2 = Name.fromConstantString("rvs2.example.com.");
+  private final List<Name> servers = new ArrayList<>();
 
   @BeforeEach
   void beforeEach() {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // -*- Java -*-
 //
 // Copyright (c) 2005, Matthew J. Rutherford <rutherfo@cs.colorado.edu>
@@ -75,6 +76,11 @@ class TypeTest {
   @Test
   void value_2arg() {
     assertEquals(301, Type.value("301", true));
+  }
+
+  @Test
+  void value_2arg_outOfRange() {
+    assertEquals(-1, Type.value("TYPE65536", true));
   }
 
   @Test

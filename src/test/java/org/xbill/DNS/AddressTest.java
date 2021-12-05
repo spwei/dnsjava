@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // -*- Java -*-
 //
 // Copyright (c) 2005, Matthew J. Rutherford <rutherfo@cs.colorado.edu>
@@ -482,9 +483,8 @@ class AddressTest {
                   return answer;
                 });
     Lookup.setDefaultResolver(mockResolver);
-    assertThrows(
-        UnknownHostException.class,
-        () -> Address.getHostName(InetAddress.getByName("192.168.1.1")));
+    InetAddress address = InetAddress.getByName("192.168.1.1");
+    assertThrows(UnknownHostException.class, () -> Address.getHostName(address));
 
     // reset resolver
     Lookup.refreshDefault();

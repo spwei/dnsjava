@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -226,7 +227,7 @@ public final class Type {
    * Service Location and Parameter Binding
    *
    * @see <a
-   *     href="https://tools.ietf.org/html/draft-ietf-dnsop-svcb-https-01">draft-ietf-dnsop-svcb-https</a>
+   *     href="https://tools.ietf.org/html/draft-ietf-dnsop-svcb-https-06">draft-ietf-dnsop-svcb-https</a>
    */
   public static final int SVCB = 64;
 
@@ -234,7 +235,7 @@ public final class Type {
    * HTTPS Service Location and Parameter Binding
    *
    * @see <a
-   *     href="https://tools.ietf.org/html/draft-ietf-dnsop-svcb-https-01">draft-ietf-dnsop-svcb-https</a>
+   *     href="https://tools.ietf.org/html/draft-ietf-dnsop-svcb-https-06">draft-ietf-dnsop-svcb-https</a>
    */
   public static final int HTTPS = 65;
 
@@ -318,11 +319,12 @@ public final class Type {
   public static final int DLV = 32769;
 
   private static class TypeMnemonic extends Mnemonic {
-    private HashMap<Integer, Supplier<Record>> factories;
+    private final HashMap<Integer, Supplier<Record>> factories;
 
     public TypeMnemonic() {
       super("Type", CASE_UPPER);
       setPrefix("TYPE");
+      setMaximum(0xFFFF);
       factories = new HashMap<>();
     }
 
@@ -357,7 +359,7 @@ public final class Type {
     }
   }
 
-  private static TypeMnemonic types = new TypeMnemonic();
+  private static final TypeMnemonic types = new TypeMnemonic();
 
   static {
     types.add(A, "A", ARecord::new);

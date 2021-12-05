@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.xbill.DNS.DNSSEC.DNSSECException;
 
 class DNSSECTest {
-  private TXTRecord txt = new TXTRecord(Name.root, DClass.IN, 3600, "test");
+  private final TXTRecord txt = new TXTRecord(Name.root, DClass.IN, 3600, "test");
 
   @Test
   void testECDSALeadingZeroUndersize() throws IOException, DNSSECException {

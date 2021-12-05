@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2002-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -17,5 +18,15 @@ public class TextParseException extends IOException {
 
   public TextParseException(String s) {
     super(s);
+  }
+
+  /** @since 3.5 */
+  public TextParseException(String name, String message) {
+    super("'" + name + "': " + message);
+  }
+
+  /** @since 3.5 */
+  public TextParseException(String name, String message, Exception inner) {
+    super("'" + name + "': " + message, inner);
   }
 }

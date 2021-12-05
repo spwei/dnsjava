@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS.config;
 
 import java.io.BufferedReader;
@@ -15,7 +15,9 @@ import org.xbill.DNS.SimpleResolver;
 public class ResolvConfResolverConfigProvider extends BaseResolverConfigProvider {
   private int ndots = 1;
 
+  @Override
   public void initialize() {
+    reset();
     // first try the default unix config path
     if (!tryParseResolveConf("/etc/resolv.conf")) {
       // then fallback to netware

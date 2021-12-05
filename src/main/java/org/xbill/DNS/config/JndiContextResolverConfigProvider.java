@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS.config;
 
 import java.net.InetSocketAddress;
@@ -41,7 +41,9 @@ public class JndiContextResolverConfigProvider implements ResolverConfigProvider
       log.debug("JNDI class: {}", DirContext.class.getName());
     }
 
+    @Override
     public void initialize() {
+      reset();
       Hashtable<String, String> env = new Hashtable<>();
       env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
       // http://mail.openjdk.java.net/pipermail/net-dev/2017-March/010695.html

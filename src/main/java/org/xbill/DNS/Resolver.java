@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
 
 import java.io.IOException;
-import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -104,7 +106,7 @@ public interface Resolver {
    */
   @Deprecated
   default void setTimeout(int secs, int msecs) {
-    setTimeout(Duration.ofMillis(secs * 1000 + msecs));
+    setTimeout(Duration.ofMillis(secs * 1000L + msecs));
   }
 
   /**
@@ -137,6 +139,10 @@ public interface Resolver {
   /**
    * Sends a message and waits for a response.
    *
+   * <p>The waiting is done on the calling thread. Do not call this method from async code, and
+   * especially not from tasks running on {@link ForkJoinPool#commonPool()}, use {@link
+   * #sendAsync(Message)} or {@link #sendAsync(Message, Executor)} instead.
+   *
    * @param query The query to send.
    * @return The response
    * @throws IOException An error occurred while sending or receiving.
@@ -146,6 +152,7 @@ public interface Resolver {
       CompletableFuture<Message> result = sendAsync(query).toCompletableFuture();
       return result.get(getTimeout().toMillis(), TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new IOException(e);
     } catch (ExecutionException e) {
       if (e.getCause() instanceof IOException) {
@@ -154,8 +161,28 @@ public interface Resolver {
         throw new IOException(e.getCause());
       }
     } catch (TimeoutException e) {
-      throw new SocketTimeoutException(e.getMessage());
+      throw new IOException(
+          "Timed out while trying to resolve "
+              + query.getQuestion().getName()
+              + "/"
+              + Type.string(query.getQuestion().type)
+              + ", id="
+              + query.getHeader().getID());
     }
+  }
+
+  /**
+   * Asynchronously sends a message using the default {@link ForkJoinPool#commonPool()}.
+   *
+   * <p>The default implementation calls the deprecated {@link #sendAsync(Message,
+   * ResolverListener)}. Implementors must override at least one of the {@code sendAsync} methods or
+   * a stack overflow will occur.
+   *
+   * @param query The query to send.
+   * @return A future that completes when the query is finished.
+   */
+  default CompletionStage<Message> sendAsync(Message query) {
+    return sendAsync(query, ForkJoinPool.commonPool());
   }
 
   /**
@@ -166,10 +193,11 @@ public interface Resolver {
    * a stack overflow will occur.
    *
    * @param query The query to send.
+   * @param executor The service to use for async operations.
    * @return A future that completes when the query is finished.
    */
   @SuppressWarnings("deprecation")
-  default CompletionStage<Message> sendAsync(Message query) {
+  default CompletionStage<Message> sendAsync(Message query, Executor executor) {
     CompletableFuture<Message> f = new CompletableFuture<>();
     sendAsync(
         query,

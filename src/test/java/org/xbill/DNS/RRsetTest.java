@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // -*- Java -*-
 //
 // Copyright (c) 2005, Matthew J. Rutherford <rutherfo@cs.colorado.edu>
@@ -34,6 +35,7 @@
 //
 package org.xbill.DNS;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -43,9 +45,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class RRsetTest {
   private RRset m_rs;
@@ -218,6 +225,31 @@ class RRsetTest {
   }
 
   @Test
+  void ctor_vararg() {
+    RRset set = new RRset(m_a1, m_a2);
+    assertEquals(Stream.of(m_a1, m_a2).collect(Collectors.toList()), set.rrs());
+    assertEquals(Collections.emptyList(), set.sigs());
+  }
+
+  @Test
+  void ctor_vararg_sig() {
+    RRset set = new RRset(m_a1, m_a2, m_s1);
+    assertEquals(Stream.of(m_a1, m_a2).collect(Collectors.toList()), set.rrs());
+    assertEquals(Collections.singletonList(m_s1), set.sigs());
+  }
+
+  @Test
+  void ctor_vararg_mismatch() {
+    TXTRecord txt = new TXTRecord(m_name, DClass.IN, 3600, "test");
+    assertThrows(IllegalArgumentException.class, () -> new RRset(m_a1, m_a2, txt));
+  }
+
+  @Test
+  void ctor_vararg_null() {
+    assertThrows(NullPointerException.class, () -> new RRset((Record[]) null));
+  }
+
+  @Test
   void test_toString() {
     m_rs.addRR(m_a1);
     m_rs.addRR(m_a2);
@@ -317,23 +349,18 @@ class RRsetTest {
     assertEquals(m_a2, itr.get(1));
   }
 
-  @Test
-  void cycleBelowShort() throws Exception {
-    runSim(100);
-  }
-
-  @Test
-  void cycleAboveShort() throws Exception {
-    runSim(50_000);
-  }
-
-  private void runSim(int numOfCalls) throws Exception {
+  @ParameterizedTest
+  @ValueSource(ints = {100, 50_000})
+  void cycleSimulationShortValues(int numOfCalls) {
     RRset rrset = new RRset();
     rrset.addRR(m_a1);
     rrset.addRR(m_a2);
 
-    for (int i = 0; i < numOfCalls; i++) {
-      rrset.rrs(true);
-    }
+    assertDoesNotThrow(
+        () -> {
+          for (int i = 0; i < numOfCalls; i++) {
+            rrset.rrs(true);
+          }
+        });
   }
 }

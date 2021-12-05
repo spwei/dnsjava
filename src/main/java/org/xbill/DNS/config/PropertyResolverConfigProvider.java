@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS.config;
 
 import java.net.InetSocketAddress;
@@ -34,6 +34,7 @@ public class PropertyResolverConfigProvider extends BaseResolverConfigProvider {
    * @since 3.2
    */
   protected void initialize(String serverName, String searchName, String ndotsName) {
+    reset();
     String servers = System.getProperty(serverName);
     if (servers != null) {
       StringTokenizer st = new StringTokenizer(servers, ",");

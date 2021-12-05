@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -267,7 +268,8 @@ public final class Address {
             return aaaa;
           }
         }
-        throw new UnknownHostException("<" + name + "> could not be resolved");
+        throw new UnknownHostException(
+            "<" + name + "> could not be resolved: " + lookup.getErrorString());
       }
       if (!all) {
         return a;
@@ -281,7 +283,7 @@ public final class Address {
       System.arraycopy(aaaa, 0, merged, a.length, aaaa.length);
       return merged;
     } catch (TextParseException e) {
-      throw new UnknownHostException("<" + name + "> is invalid");
+      throw new UnknownHostException("<" + name + "> is invalid: " + e.getMessage());
     }
   }
 

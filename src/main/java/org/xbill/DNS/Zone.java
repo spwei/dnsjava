@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -34,7 +35,7 @@ public class Zone implements Serializable {
   private boolean hasWild;
 
   class ZoneIterator implements Iterator<RRset> {
-    private Iterator<Map.Entry<Name, Object>> zentries;
+    private final Iterator<Map.Entry<Name, Object>> zentries;
     private RRset[] current;
     private int count;
     private boolean wantLastSOA;
@@ -141,12 +142,13 @@ public class Zone implements Serializable {
     if (zone == null) {
       throw new IllegalArgumentException("no zone name specified");
     }
-    Master m = new Master(file, zone);
-    Record record;
+    try (Master m = new Master(file, zone)) {
+      Record record;
 
-    origin = zone;
-    while ((record = m.nextRecord()) != null) {
-      maybeAddRecord(record);
+      origin = zone;
+      while ((record = m.nextRecord()) != null) {
+        maybeAddRecord(record);
+      }
     }
     validate();
   }
@@ -335,25 +337,18 @@ public class Zone implements Serializable {
   }
 
   private synchronized SetResponse lookup(Name name, int type) {
-    int labels;
-    int olabels;
-    int tlabels;
-    RRset rrset;
-    Name tname;
-    Object types;
-    SetResponse sr;
-
     if (!name.subdomain(origin)) {
       return SetResponse.ofType(SetResponse.NXDOMAIN);
     }
 
-    labels = name.labels();
-    olabels = origin.labels();
+    int labels = name.labels();
+    int olabels = origin.labels();
 
-    for (tlabels = olabels; tlabels <= labels; tlabels++) {
+    for (int tlabels = olabels; tlabels <= labels; tlabels++) {
       boolean isOrigin = tlabels == olabels;
       boolean isExact = tlabels == labels;
 
+      Name tname;
       if (isOrigin) {
         tname = origin;
       } else if (isExact) {
@@ -362,7 +357,7 @@ public class Zone implements Serializable {
         tname = new Name(name, labels - tlabels);
       }
 
-      types = exactName(tname);
+      Object types = exactName(tname);
       if (types == null) {
         continue;
       }
@@ -377,9 +372,8 @@ public class Zone implements Serializable {
 
       /* If this is an ANY lookup, return everything. */
       if (isExact && type == Type.ANY) {
-        sr = new SetResponse(SetResponse.SUCCESSFUL);
-        RRset[] sets = allRRsets(types);
-        for (RRset set : sets) {
+        SetResponse sr = new SetResponse(SetResponse.SUCCESSFUL);
+        for (RRset set : allRRsets(types)) {
           sr.addRRset(set);
         }
         return sr;
@@ -390,18 +384,16 @@ public class Zone implements Serializable {
        * Otherwise, look for a DNAME.
        */
       if (isExact) {
-        rrset = oneRRset(types, type);
+        RRset rrset = oneRRset(types, type);
         if (rrset != null) {
-          sr = new SetResponse(SetResponse.SUCCESSFUL);
-          sr.addRRset(rrset);
-          return sr;
+          return new SetResponse(SetResponse.SUCCESSFUL, rrset);
         }
         rrset = oneRRset(types, Type.CNAME);
         if (rrset != null) {
           return new SetResponse(SetResponse.CNAME, rrset);
         }
       } else {
-        rrset = oneRRset(types, Type.DNAME);
+        RRset rrset = oneRRset(types, Type.DNAME);
         if (rrset != null) {
           return new SetResponse(SetResponse.DNAME, rrset);
         }
@@ -415,18 +407,23 @@ public class Zone implements Serializable {
 
     if (hasWild) {
       for (int i = 0; i < labels - olabels; i++) {
-        tname = name.wild(i + 1);
-
-        types = exactName(tname);
+        Name tname = name.wild(i + 1);
+        Object types = exactName(tname);
         if (types == null) {
           continue;
         }
 
-        rrset = oneRRset(types, type);
-        if (rrset != null) {
-          sr = new SetResponse(SetResponse.SUCCESSFUL);
-          sr.addRRset(rrset);
+        if (type == Type.ANY) {
+          SetResponse sr = new SetResponse(SetResponse.SUCCESSFUL);
+          for (RRset set : allRRsets(types)) {
+            sr.addRRset(expandSet(set, name));
+          }
           return sr;
+        } else {
+          RRset rrset = oneRRset(types, type);
+          if (rrset != null) {
+            return new SetResponse(SetResponse.SUCCESSFUL, expandSet(rrset, name));
+          }
         }
       }
     }
@@ -434,8 +431,20 @@ public class Zone implements Serializable {
     return SetResponse.ofType(SetResponse.NXDOMAIN);
   }
 
+  private RRset expandSet(RRset set, Name tname) {
+    RRset expandedSet = new RRset();
+    for (Record r : set.rrs()) {
+      expandedSet.addRR(r.withName(tname));
+    }
+    for (RRSIGRecord r : set.sigs()) {
+      expandedSet.addRR(r.withName(tname));
+    }
+    return expandedSet;
+  }
+
   /**
-   * Looks up Records in the Zone. This follows CNAMEs and wildcards.
+   * Looks up Records in the Zone. The answer can be a {@code CNAME} instead of the actual requested
+   * type and wildcards are expanded.
    *
    * @param name The name to look up
    * @param type The type to look up

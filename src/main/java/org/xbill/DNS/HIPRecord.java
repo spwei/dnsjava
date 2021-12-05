@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS;
 
 import java.io.IOException;
@@ -23,7 +23,7 @@ public class HIPRecord extends Record {
   private byte[] hit;
   private int pkAlgorithm;
   private byte[] publicKey;
-  private List<Name> rvServers = new ArrayList<>();
+  private final List<Name> rvServers = new ArrayList<>();
 
   HIPRecord() {}
 

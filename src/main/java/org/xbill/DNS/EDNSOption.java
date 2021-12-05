@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 package org.xbill.DNS;
 
@@ -60,13 +61,17 @@ public abstract class EDNSOption {
     /** Signaling Trust Anchor Knowledge in DNS Security Extensions (DNSSEC), RFC 8145 */
     public static final int EDNS_KEY_TAG = 14;
 
+    /** Extended DNS Errors, RFC 8914. */
+    public static final int EDNS_EXTENDED_ERROR = 15;
+
     /** DNS EDNS Tags, draft-bellis-dnsop-edns-tags-01 */
     public static final int EDNS_CLIENT_TAG = 16;
 
     /** DNS EDNS Tags, draft-bellis-dnsop-edns-tags-01 */
     public static final int EDNS_SERVER_TAG = 17;
 
-    private static Mnemonic codes = new Mnemonic("EDNS Option Codes", Mnemonic.CASE_SENSITIVE);
+    private static final Mnemonic codes =
+        new Mnemonic("EDNS Option Codes", Mnemonic.CASE_SENSITIVE);
 
     static {
       codes.setMaximum(0xFFFF);
@@ -87,7 +92,7 @@ public abstract class EDNSOption {
       codes.add(PADDING, "Padding");
       codes.add(CHAIN, "CHAIN");
       codes.add(EDNS_KEY_TAG, "edns-key-tag");
-
+      codes.add(EDNS_EXTENDED_ERROR, "Extended_DNS_Error");
       codes.add(EDNS_CLIENT_TAG, "EDNS-Client-Tag");
       codes.add(EDNS_SERVER_TAG, "EDNS-Server-Tag");
     }
@@ -182,6 +187,9 @@ public abstract class EDNSOption {
         break;
       case Code.TCP_KEEPALIVE:
         option = new TcpKeepaliveOption();
+        break;
+      case Code.EDNS_EXTENDED_ERROR:
+        option = new ExtendedErrorCodeOption();
         break;
       default:
         option = new GenericEDNSOption(code);

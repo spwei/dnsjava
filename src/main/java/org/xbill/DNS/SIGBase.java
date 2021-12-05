@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -166,7 +167,7 @@ abstract class SIGBase extends Record {
     return timeSigned;
   }
 
-  /** Returns The footprint/key id of the signing key. */
+  /** Returns the footprint/key id of the signing key. */
   public int getFootprint() {
     return footprint;
   }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2005 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -10,14 +11,17 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 
-final class TCPClient extends Client {
-  private long endTime;
-  private SelectionKey key;
+final class TCPClient {
+  private final long startTime;
+  private final Duration timeout;
+  private final SelectionKey key;
 
-  TCPClient(long timeout) throws IOException {
-    endTime = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeout);
+  TCPClient(Duration timeout) throws IOException {
+    this.timeout = timeout;
+    startTime = System.nanoTime();
     boolean done = false;
     Selector selector = null;
     SocketChannel channel = SocketChannel.open();
@@ -50,7 +54,7 @@ final class TCPClient extends Client {
     try {
       while (!channel.finishConnect()) {
         if (!key.isConnectable()) {
-          blockUntil(key, endTime);
+          blockUntil(key);
         }
       }
     } finally {
@@ -62,7 +66,7 @@ final class TCPClient extends Client {
 
   void send(byte[] data) throws IOException {
     SocketChannel channel = (SocketChannel) key.channel();
-    verboseLog(
+    NioClient.verboseLog(
         "TCP write",
         channel.socket().getLocalSocketAddress(),
         channel.socket().getRemoteSocketAddress(),
@@ -83,11 +87,11 @@ final class TCPClient extends Client {
             throw new EOFException();
           }
           nsent += (int) n;
-          if (nsent < data.length + 2 && endTime - System.nanoTime() < 0) {
+          if (nsent < data.length + 2 && System.nanoTime() - startTime >= timeout.toNanos()) {
             throw new SocketTimeoutException();
           }
         } else {
-          blockUntil(key, endTime);
+          blockUntil(key);
         }
       }
     } finally {
@@ -111,11 +115,11 @@ final class TCPClient extends Client {
             throw new EOFException();
           }
           nrecvd += (int) n;
-          if (nrecvd < length && System.currentTimeMillis() > endTime) {
+          if (nrecvd < length && System.nanoTime() - startTime >= timeout.toNanos()) {
             throw new SocketTimeoutException();
           }
         } else {
-          blockUntil(key, endTime);
+          blockUntil(key);
         }
       }
     } finally {
@@ -126,12 +130,13 @@ final class TCPClient extends Client {
     return data;
   }
 
-  private static void blockUntil(SelectionKey key, long endTime) throws IOException {
-    long timeout = TimeUnit.NANOSECONDS.toMillis(endTime - System.nanoTime());
+  private void blockUntil(SelectionKey key) throws IOException {
+    long remainingTimeout =
+        timeout.minus(System.nanoTime() - startTime, ChronoUnit.NANOS).toMillis();
     int nkeys = 0;
-    if (timeout > 0) {
-      nkeys = key.selector().select(timeout);
-    } else if (timeout == 0) {
+    if (remainingTimeout > 0) {
+      nkeys = key.selector().select(remainingTimeout);
+    } else if (remainingTimeout == 0) {
       nkeys = key.selector().selectNow();
     }
     if (nkeys == 0) {
@@ -149,7 +154,7 @@ final class TCPClient extends Client {
     int length = ((buf[0] & 0xFF) << 8) + (buf[1] & 0xFF);
     byte[] data = _recv(length);
     SocketChannel channel = (SocketChannel) key.channel();
-    verboseLog(
+    NioClient.verboseLog(
         "TCP read",
         channel.socket().getLocalSocketAddress(),
         channel.socket().getRemoteSocketAddress(),

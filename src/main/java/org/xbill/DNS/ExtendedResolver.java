@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -13,9 +14,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,15 +35,15 @@ public class ExtendedResolver implements Resolver {
     private final Message query;
     private final int[] attempts;
     private final int retriesPerResolver;
+    private final long endTime;
     private List<ResolverEntry> resolvers;
     private int currentResolver;
-    private long endTime;
 
     Resolution(ExtendedResolver eres, Message query) {
       resolvers = new ArrayList<>(eres.resolvers);
       endTime = System.nanoTime() + eres.timeout.toNanos();
       if (eres.loadBalance) {
-        int start = eres.lbStart.updateAndGet(i -> i++ % resolvers.size());
+        int start = eres.lbStart.updateAndGet(i -> (i + 1) % resolvers.size());
         if (start > 0) {
           List<ResolverEntry> shuffle = new ArrayList<>(resolvers.size());
           for (int i = 0; i < resolvers.size(); i++) {
@@ -63,7 +66,7 @@ public class ExtendedResolver implements Resolver {
     }
 
     /* Asynchronously sends a message. */
-    private CompletableFuture<Message> send() {
+    private CompletionStage<Message> send(Executor executorService) {
       ResolverEntry r = resolvers.get(currentResolver);
       log.debug(
           "Sending {}/{}, id={} to resolver {} ({}), attempt {} of {}",
@@ -75,17 +78,18 @@ public class ExtendedResolver implements Resolver {
           attempts[currentResolver] + 1,
           retriesPerResolver);
       attempts[currentResolver]++;
-      return r.resolver.sendAsync(query).toCompletableFuture();
+      return r.resolver.sendAsync(query, executorService);
     }
 
     /* Start an asynchronous resolution */
-    private CompletionStage<Message> startAsync() {
-      CompletableFuture<Message> f = new CompletableFuture<>();
-      send().handleAsync((result, ex) -> handle(result, ex, f));
-      return f;
+    private CompletionStage<Message> startAsync(Executor executorService) {
+      return send(executorService)
+          .handle((result, ex) -> handle(result, ex, executorService))
+          .thenCompose(Function.identity());
     }
 
-    private Void handle(Message result, Throwable ex, CompletableFuture<Message> f) {
+    private CompletionStage<Message> handle(
+        Message result, Throwable ex, Executor executorService) {
       AtomicInteger failureCounter = resolvers.get(currentResolver).failures;
       if (ex != null) {
         log.debug(
@@ -102,6 +106,7 @@ public class ExtendedResolver implements Resolver {
         failureCounter.incrementAndGet();
 
         if (endTime - System.nanoTime() < 0) {
+          CompletableFuture<Message> f = new CompletableFuture<>();
           f.completeExceptionally(
               new IOException(
                   "Timed out while trying to resolve "
@@ -110,22 +115,24 @@ public class ExtendedResolver implements Resolver {
                       + Type.string(query.getQuestion().type)
                       + ", id="
                       + query.getHeader().getID()));
+          return f;
         } else {
           // go to next resolver, until retries on all resolvers are exhausted
           currentResolver = (currentResolver + 1) % resolvers.size();
           if (attempts[currentResolver] < retriesPerResolver) {
-            send().handleAsync((r, t) -> handle(r, t, f));
-            return null;
+            return send(executorService)
+                .handle((r, t) -> handle(r, t, executorService))
+                .thenCompose(Function.identity());
           }
 
+          CompletableFuture<Message> f = new CompletableFuture<>();
           f.completeExceptionally(ex);
+          return f;
         }
       } else {
         failureCounter.updateAndGet(i -> i > 0 ? (int) Math.log(i) : 0);
-        f.complete(result);
+        return CompletableFuture.completedFuture(result);
       }
-
-      return null;
     }
   }
 
@@ -191,25 +198,10 @@ public class ExtendedResolver implements Resolver {
    * @exception UnknownHostException A server name could not be resolved
    */
   public ExtendedResolver(String[] servers) throws UnknownHostException {
-    try {
-      resolvers.addAll(
-          Arrays.stream(servers)
-              .map(
-                  server -> {
-                    try {
-                      Resolver r = new SimpleResolver(server);
-                      r.setTimeout(DEFAULT_RESOLVER_TIMEOUT);
-                      return new ResolverEntry(r);
-                    } catch (UnknownHostException e) {
-                      throw new RuntimeException(e);
-                    }
-                  })
-              .collect(Collectors.toSet()));
-    } catch (RuntimeException e) {
-      if (e.getCause() instanceof UnknownHostException) {
-        throw (UnknownHostException) e.getCause();
-      }
-      throw e;
+    for (String server : servers) {
+      Resolver r = new SimpleResolver(server);
+      r.setTimeout(DEFAULT_RESOLVER_TIMEOUT);
+      resolvers.add(new ResolverEntry(r));
     }
   }
 
@@ -230,10 +222,9 @@ public class ExtendedResolver implements Resolver {
    * @param resolvers An iterable of pre-initialized {@link Resolver}s.
    */
   public ExtendedResolver(Iterable<Resolver> resolvers) {
-    this.resolvers.addAll(
-        StreamSupport.stream(resolvers.spliterator(), false)
-            .map(ResolverEntry::new)
-            .collect(Collectors.toSet()));
+    for (Resolver r : resolvers) {
+      this.resolvers.add(new ResolverEntry(r));
+    }
   }
 
   @Override
@@ -276,6 +267,18 @@ public class ExtendedResolver implements Resolver {
     return timeout;
   }
 
+  /**
+   * Sets the timeout for the {@link ExtendedResolver}.
+   *
+   * <p>Note that this <i>only</i> sets the timeout for the {@link ExtendedResolver}, not the
+   * individual {@link Resolver}s. If the timeout expires, the {@link ExtendedResolver} simply stops
+   * retrying, it does not abort running queries. The timeout value must be larger than that for the
+   * individual resolver to have any effect.
+   *
+   * @see #ExtendedResolver()
+   * @see #ExtendedResolver(String[])
+   * @param timeout The amount of time to wait before sending further queries.
+   */
   @Override
   public void setTimeout(Duration timeout) {
     this.timeout = timeout;
@@ -290,8 +293,21 @@ public class ExtendedResolver implements Resolver {
    */
   @Override
   public CompletionStage<Message> sendAsync(Message query) {
+    return sendAsync(query, ForkJoinPool.commonPool());
+  }
+
+  /**
+   * Sends a message to multiple servers, and queries are sent multiple times until either a
+   * successful response is received, or it is clear that there is no successful response.
+   *
+   * @param query The query to send.
+   * @param executor The service to use for async operations.
+   * @return A future that completes when the query is finished.
+   */
+  @Override
+  public CompletionStage<Message> sendAsync(Message query, Executor executor) {
     Resolution res = new Resolution(this, query);
-    return res.startAsync();
+    return res.startAsync(executor);
   }
 
   /** Returns the nth resolver used by this ExtendedResolver */

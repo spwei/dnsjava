@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2003-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -11,8 +12,8 @@ import java.io.IOException;
  */
 public class Update extends Message {
 
-  private Name origin;
-  private int dclass;
+  private final Name origin;
+  private final int dclass;
 
   /**
    * Creates an update message.

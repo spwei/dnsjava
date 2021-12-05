@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2005 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS.spi;
@@ -116,6 +117,7 @@ public class DNSJavaNameService implements NameService {
    * @param host The host name to resolve.
    * @return All the ip addresses found for the host name.
    */
+  @Override
   public InetAddress[] lookupAllHostAddr(String host) throws UnknownHostException {
     Name name;
     try {
@@ -167,6 +169,7 @@ public class DNSJavaNameService implements NameService {
    * @param addr The ip address to lookup.
    * @return The host name found for the ip address.
    */
+  @Override
   public String getHostByAddr(byte[] addr) throws UnknownHostException {
     Name name = ReverseMap.fromAddress(InetAddress.getByAddress(addr));
     Record[] records = new Lookup(name, Type.PTR).run();

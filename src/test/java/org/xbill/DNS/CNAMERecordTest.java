@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // -*- Java -*-
 //
 // Copyright (c) 2005, Matthew J. Rutherford <rutherfo@cs.colorado.edu>
@@ -39,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("deprecation")
 class CNAMERecordTest {
   @Test
   void ctor_0arg() {
@@ -59,6 +61,6 @@ class CNAMERecordTest {
     assertEquals(DClass.IN, d.getDClass());
     assertEquals(0xABCDEL, d.getTTL());
     assertEquals(a, d.getTarget());
-    assertEquals(a, d.getAlias());
+    assertEquals(n, d.getAlias());
   }
 }

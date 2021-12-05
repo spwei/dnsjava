@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -27,7 +28,7 @@ public final class Opcode {
   /** DNS Stateful Operations (DSO, RFC8490) */
   public static final int DSO = 6;
 
-  private static Mnemonic opcodes = new Mnemonic("DNS Opcode", Mnemonic.CASE_UPPER);
+  private static final Mnemonic opcodes = new Mnemonic("DNS Opcode", Mnemonic.CASE_UPPER);
 
   static {
     opcodes.setMaximum(0xF);

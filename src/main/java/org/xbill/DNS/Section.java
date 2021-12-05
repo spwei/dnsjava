@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -31,9 +32,9 @@ public final class Section {
   /** The update (third) section of a dynamic update message */
   public static final int UPDATE = 2;
 
-  private static Mnemonic sections = new Mnemonic("Message Section", Mnemonic.CASE_LOWER);
-  private static String[] longSections = new String[4];
-  private static String[] updateSections = new String[4];
+  private static final Mnemonic sections = new Mnemonic("Message Section", Mnemonic.CASE_LOWER);
+  private static final String[] longSections = new String[4];
+  private static final String[] updateSections = new String[4];
 
   static {
     sections.setMaximum(3);

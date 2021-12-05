@@ -1,5 +1,62 @@
+09/19/2021
+	- 3.4.2 released
+	- Document behavior of ExtendedResolver.setTimeout (#206)
+	- Add overloads to use an Executor when sending queries in
+	  resolvers (#211)
+	- Remove synchronous locks in DoH Resolver (related to #211)
+	- Fix broken CNAME handling in LookupSession (#212)
+	- "WireParseException: bad label type" when parsing Message
+	  from ByteBuffer (#213)
+	- Remove unnecessary synchronization in org.xbill.DNS.Header::getID
+	  (#215, @maltalex)
+	- Add examples for the LookupSession and direct Resolver usage
+
+07/30/2021
+	- 3.4.1 released
+	- Allow signing with ED25519 and ED448 algorithms
+	  (#200, Klaus Malorny)
+	- Rename echconfig to ech in SVCB/HTTPS records
+	  (#202, @adam-stoler)
+	- Fix bug in Name.compareTo with byte-values >= 128
+	  (#205, @adam-stoler)
+
+06/09/2021
+	- 3.4.0 released
+	- UnknownHostException provides details in message (#154)
+	- Limit length of relative Name to 254 (#165)
+	- Fix wildcard lookups in Zone (#169)
+	- Properly close UDP channel upon error
+	  (#177, Walter Scott Johnson)
+	- Fix load balancing in ExtendedResolver
+	  (#179, Paulo Costa)
+	- Add method to shutdown NIO threads (#180)
+	- Fix restoring active position on byte buffers
+	  (#184, @ryru)
+	- Add support for extended DNS errors (RFC8914, #187)
+	- Fix TTL for SOA record to minimum of TTL and minimum field
+	  (#191, @amitknx)
+	- Add support for hosts file in lookups (#195)
+
+10/28/2020
+	- 3.3.1 released
+	- Fix value of getAlias in C/DNameRecord (#136)
+	- Fix bug with SVCB/HTTPS parsing of master file format
+	  (PR#135, @adam-stoler) 
+
+09/27/2020
+	 - 3.3.0 released
+	 - Add support for SVCB and HTTPS records
+	   (PR#116, @adam-stoler)
+	 - Fix an issue with ndots in Lookup (#118)
+	 - Support IPv4 mapped IPv6 address in AAAA record
+	   (PR#120, @spwei)
+	 - Validate range in Type
+	 - Improve DOH Resolver (#123, #127)
+	   Note that this resolver is more a proof of concept and not
+	   production ready. See Javadoc and issue #123.
+
 07/11/2020
-	- 3.2.1 released
+	- 3.2.2 released
 	- Fix JNA access violation in WindowsResolverConfigProvider
 	  on 32bit JVMs
 

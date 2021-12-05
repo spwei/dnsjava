@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // -*- Java -*-
 //
 // Copyright (c) 2005, Matthew J. Rutherford <rutherfo@cs.colorado.edu>
@@ -322,13 +323,14 @@ class GPOSRecordTest {
     }
 
     @Test
-    void invalid_string() throws IOException {
+    void invalid_string() {
       Tokenizer t = new Tokenizer("1.0 2.0 \\435");
-      try {
-        GPOSRecord gr = new GPOSRecord();
-        gr.rdataFromString(t, null);
-      } catch (TextParseException e) {
-      }
+      assertThrows(
+          TextParseException.class,
+          () -> {
+            GPOSRecord gr = new GPOSRecord();
+            gr.rdataFromString(t, null);
+          });
     }
   }
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -23,7 +24,7 @@ public class Master implements AutoCloseable {
   private Record last = null;
   private long defaultTTL;
   private Master included = null;
-  private Tokenizer st;
+  private final Tokenizer st;
   private int currentType;
   private int currentDClass;
   private long currentTTL;

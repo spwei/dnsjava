@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-3-Clause
 package org.xbill.DNS;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.EDNSOption.Code;
 
-public class DnssecAlgorithmOptionTest {
+class DnssecAlgorithmOptionTest {
   @Test
   void ctor() {
     new DnssecAlgorithmOption(Code.DAU);
@@ -69,6 +69,6 @@ public class DnssecAlgorithmOptionTest {
   void testToString() {
     DnssecAlgorithmOption o =
         new DnssecAlgorithmOption(Code.DAU, Algorithm.RSASHA1, Algorithm.DSA_NSEC3_SHA1);
-    assertEquals("DAU: [RSASHA1, DSA-NSEC3-SHA1]", o.optionToString());
+    assertEquals("[RSASHA1, DSA-NSEC3-SHA1]", o.optionToString());
   }
 }

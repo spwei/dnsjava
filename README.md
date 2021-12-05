@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/dnsjava/dnsjava.svg?branch=master)](https://travis-ci.org/dnsjava/dnsjava)
-[![Coverage Status](https://coveralls.io/repos/dnsjava/dnsjava/badge.svg)](https://coveralls.io/r/dnsjava/dnsjava)
+[![dnsjava CI](https://github.com/dnsjava/dnsjava/actions/workflows/build.yml/badge.svg)](https://github.com/dnsjava/dnsjava/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/dnsjava/dnsjava/branch/master/graph/badge.svg?token=FKmcwl1Oys)](https://codecov.io/gh/dnsjava/dnsjava)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/dnsjava/dnsjava/badge.svg)](https://search.maven.org/artifact/dnsjava/dnsjava)
 [![Javadocs](http://javadoc.io/badge/dnsjava/dnsjava.svg)](http://javadoc.io/doc/dnsjava/dnsjava)
 
@@ -135,6 +135,24 @@ Some settings of dnsjava can be configured via
         <tr>
             <td colspan="3">Use an OS-assigned ephemeral port for UDP queries. Enabling this option is insecure! Do NOT use it.</td>
         </tr>
+        <tr>
+            <td rowspan="2">dnsjava.lookup.max_iterations</td>
+            <td>Integer</td>
+            <td>16</td>
+            <td>20</td>
+        </tr>
+        <tr>
+            <td colspan="3">Maximum number of CNAMEs to follow in a chain.</td>
+        </tr>
+        <tr>
+            <td rowspan="2">dnsjava.lookup.use_hosts_file</td>
+            <td>Boolean</td>
+            <td>true</td>
+            <td>false</td>
+        </tr>
+        <tr>
+            <td colspan="3">Use the system's hosts file for lookups before resorting to a resolver.</td>
+        </tr>
     </tbody>
 </table>
 
@@ -146,7 +164,7 @@ through the `Options` class. Please refer to the Javadoc for details.
 | --- | ---- | -------|  ----------- |
 | BINDTTL | Boolean | false | Print TTLs in BIND format |
 | multiline | Boolean | false | Print records in multiline format |
-| noPrintIN | Boolean | false | Don't print the class of a record if it's IN |
+| noPrintIN | Boolean | false | Do not print the class of a record if it is `IN` |
 | tsigfudge | Integer | 300 | Sets the default TSIG fudge value (in seconds) |
 | sig0validity | Integer | 300 | Sets the default SIG(0) validity period (in seconds) |
 
@@ -157,7 +175,7 @@ dnsjava comes with several built-in resolvers:
 - `ExtendedResolver`: a resolver that uses multiple `SimpleResolver`s to send
    the queries. Can be configured to query the servers in a round-robin order.
    Blacklists a server if it times out.
-- `DohResolver`: a very basic DNS over HTTP resolver, e.g. to use
+- `DohResolver`: a proof-of-concept DNS over HTTP resolver, e.g. to use
   `https://dns.google/query`.
 
 The project [dnssecjava](https://github.com/ibauersachs/dnssecjava) has a
@@ -206,7 +224,8 @@ neither source nor binary compatible. The most important changes are:
 Java versions from 1.4 to 8 can load DNS service providers at runtime. The
 functionality was [removed in JDK 9](https://bugs.openjdk.java.net/browse/JDK-8134577),
 a replacement is [requested](https://bugs.openjdk.java.net/browse/JDK-8192780),
-but so far has not been implemented.
+but so far only a [proposal](https://bugs.openjdk.java.net/browse/JDK-8263693)
+has been defined.
 
 To load the dnsjava service provider, build dnsjava on JDK 8 and set the system property:
 
@@ -240,9 +259,11 @@ until one succeeds.
 - On Unix/Solaris, `/etc/resolv.conf` is parsed.
 - On Windows, if [JNA](https://github.com/java-native-access/jna) is available
   on the classpath, the `GetAdaptersAddresses` API is used.
-- On Android, depending on the SDK level, either the properties `net.dns[1234]`
-  or the `ConnectivityManager` is used (requires initialization).
-- The `sun.net.dns.ResolverConfiguration` class is queried if enabled.
+- On Android the `ConnectivityManager` is used (requires initialization using
+  `org.xbill.DNS.config.AndroidResolverConfigProvider.setContext`).
+- The `sun.net.dns.ResolverConfiguration` class is queried if enabled. As of
+  Java 16 the JVM flag `--add-opens java.base/sun.net.dns=ALL-UNNAMED` is also
+  required.
 - If available and no servers have been found yet,
   [JNDI-DNS](https://docs.oracle.com/javase/8/docs/technotes/guides/jndi/jndi-dns.html) is used.
 - If still no servers have been found yet, use the fallback properties. This can be used to query
@@ -260,8 +281,7 @@ at [javadoc.io](http://javadoc.io/doc/dnsjava/dnsjava). See the
 
 ## License
 
-dnsjava is placed under the [BSD license](LICENSE). Several files are also under
-additional licenses; see the individual files for details.
+dnsjava is placed under the [BSD-3-Clause license](LICENSE).
 
 ## Authors
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -22,7 +23,7 @@ public class Compression {
 
   private static final int TABLE_SIZE = 17;
   private static final int MAX_POINTER = 0x3FFF;
-  private Entry[] table;
+  private final Entry[] table;
 
   /** Creates a new Compression object. */
   public Compression() {

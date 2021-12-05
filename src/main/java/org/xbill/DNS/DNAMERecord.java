@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -25,8 +26,14 @@ public class DNAMERecord extends SingleNameBase {
     return getSingleName();
   }
 
-  /** Gets the alias specified by the DNAME Record */
+  /**
+   * Gets the name of this record, aka the <i>alias</i> or <i>label</i> to the <i>delegation
+   * name</i> specified in {@link #getTarget()}.
+   *
+   * @deprecated use {@link #getName()}
+   */
+  @Deprecated
   public Name getAlias() {
-    return getSingleName();
+    return getName();
   }
 }

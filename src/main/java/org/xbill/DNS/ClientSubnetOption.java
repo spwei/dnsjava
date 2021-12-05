@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -6,7 +7,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
- * The Client Subnet EDNS Option, defined in <a href="https://tools.ietf.org/html/rfc7871>Client
+ * The Client Subnet EDNS Option, defined in <a href="https://tools.ietf.org/html/rfc7871">Client
  * subnet in DNS requests</a>.
  *
  * <p>The option is used to convey information about the IP address of the originating client, so

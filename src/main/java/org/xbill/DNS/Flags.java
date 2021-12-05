@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -9,7 +10,7 @@ package org.xbill.DNS;
  */
 public final class Flags {
 
-  private static Mnemonic flags = new Mnemonic("DNS Header Flag", Mnemonic.CASE_LOWER);
+  private static final Mnemonic flags = new Mnemonic("DNS Header Flag", Mnemonic.CASE_LOWER);
 
   /** query/response */
   public static final byte QR = 0;

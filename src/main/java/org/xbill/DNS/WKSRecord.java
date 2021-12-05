@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -152,7 +153,7 @@ public class WKSRecord extends Record {
     /** WIDEBAND EXPAK */
     public static final int WB_EXPAK = 79;
 
-    private static Mnemonic protocols = new Mnemonic("IP protocol", Mnemonic.CASE_LOWER);
+    private static final Mnemonic protocols = new Mnemonic("IP protocol", Mnemonic.CASE_LOWER);
 
     static {
       protocols.setMaximum(0xFF);
@@ -463,7 +464,7 @@ public class WKSRecord extends Record {
     /** LINK */
     public static final int LINK = 245;
 
-    private static Mnemonic services = new Mnemonic("TCP/UDP service", Mnemonic.CASE_LOWER);
+    private static final Mnemonic services = new Mnemonic("TCP/UDP service", Mnemonic.CASE_LOWER);
 
     static {
       services.setMaximum(0xFFFF);

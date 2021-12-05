@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -43,7 +44,7 @@ public final class DClass {
     }
   }
 
-  private static Mnemonic classes = new DClassMnemonic();
+  private static final Mnemonic classes = new DClassMnemonic();
 
   static {
     classes.add(IN, "IN");

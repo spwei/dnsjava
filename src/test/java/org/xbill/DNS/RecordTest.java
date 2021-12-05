@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // -*- Java -*-
 //
 // Copyright (c) 2005, Matthew J. Rutherford <rutherfo@cs.colorado.edu>
@@ -43,13 +44,13 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.function.Supplier;
-import junit.framework.Assert;
 import org.junit.jupiter.api.Test;
 
 class RecordTest {
@@ -435,22 +436,27 @@ class RecordTest {
     assertTrue(out.contains("IN"));
     assertTrue(out.contains(ttl + ""));
 
-    Options.set("BINDTTL");
+    try {
+      Options.set("BINDTTL");
 
-    out = rec.toString();
-    assertTrue(out.contains(n.toString()));
-    assertTrue(out.contains(n2.toString()));
-    assertTrue(out.contains("NS"));
-    assertTrue(out.contains("IN"));
-    assertTrue(out.contains(TTL.format(ttl)));
+      out = rec.toString();
+      assertTrue(out.contains(n.toString()));
+      assertTrue(out.contains(n2.toString()));
+      assertTrue(out.contains("NS"));
+      assertTrue(out.contains("IN"));
+      assertTrue(out.contains(TTL.format(ttl)));
 
-    Options.set("noPrintIN");
-    out = rec.toString();
-    assertTrue(out.contains(n.toString()));
-    assertTrue(out.contains(n2.toString()));
-    assertTrue(out.contains("NS"));
-    assertFalse(out.contains("IN"));
-    assertTrue(out.contains(TTL.format(ttl)));
+      Options.set("noPrintIN");
+      out = rec.toString();
+      assertTrue(out.contains(n.toString()));
+      assertTrue(out.contains(n2.toString()));
+      assertTrue(out.contains("NS"));
+      assertFalse(out.contains("IN"));
+      assertTrue(out.contains(TTL.format(ttl)));
+    } finally {
+      Options.unset("BINDTTL");
+      Options.unset("noPrintIN");
+    }
   }
 
   @Test
@@ -856,7 +862,7 @@ class RecordTest {
         try {
           assertNotNull(proto.get());
         } catch (Exception e) {
-          Assert.fail(
+          fail(
               "Record type "
                   + Type.string(i)
                   + " ("

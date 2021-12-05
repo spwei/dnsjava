@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 1999-2004 Brian Wellington (bwelling@xbill.org)
 
 package org.xbill.DNS;
@@ -8,7 +9,7 @@ package org.xbill.DNS;
  * @author Brian Wellington
  */
 public final class Rcode {
-  private static Mnemonic rcodes = new Mnemonic("DNS Rcode", Mnemonic.CASE_UPPER);
+  private static final Mnemonic rcodes = new Mnemonic("DNS Rcode", Mnemonic.CASE_UPPER);
 
   /** No error */
   public static final int NOERROR = 0;
@@ -25,7 +26,11 @@ public final class Rcode {
   /** The operation requested is not implemented */
   public static final int NOTIMP = 4;
 
-  /** Deprecated synonym for NOTIMP. */
+  /**
+   * Synonym for NOTIMP.
+   *
+   * @deprecated use {{@link #NOTIMP}}
+   */
   @Deprecated public static final int NOTIMPL = 4;
 
   /** The operation was refused by the server */
