@@ -70,6 +70,18 @@ public class DSRecord extends Record {
       int digestid,
       byte[] digest) {
     super(name, type, dclass, ttl);
+
+    int len = DNSSEC.Digest.algLength(digestid);
+    if (len > -1 && len != digest.length) {
+      throw new IllegalArgumentException(
+          "Expected "
+              + len
+              + " bytes for "
+              + DNSSEC.Digest.string(digestid)
+              + ", got "
+              + digest.length);
+    }
+
     this.footprint = checkU16("footprint", footprint);
     this.alg = checkU8("alg", alg);
     this.digestid = checkU8("digestid", digestid);
@@ -119,7 +131,17 @@ public class DSRecord extends Record {
     footprint = st.getUInt16();
     alg = st.getUInt8();
     digestid = st.getUInt8();
-    digest = st.getHex();
+    digest = st.getHex(true);
+    int len = DNSSEC.Digest.algLength(digestid);
+    if (len > -1 && len != digest.length) {
+      throw st.exception(
+          "Expected "
+              + len
+              + " bytes for "
+              + DNSSEC.Digest.string(digestid)
+              + ", got "
+              + digest.length);
+    }
   }
 
   /** Converts rdata to a String */
