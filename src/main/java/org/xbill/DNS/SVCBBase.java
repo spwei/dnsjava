@@ -7,7 +7,6 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,6 +15,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.xbill.DNS.utils.base64;
 
 /**
  * Implements common functionality for SVCB and HTTPS records
@@ -281,7 +281,7 @@ public abstract class SVCBBase extends Record {
           sb.append(",");
         }
         String str = byteArrayToString(b, false);
-        str = str.replaceAll(",", "\\\\,");
+        str = str.replace(",", "\\,");
         sb.append(str);
       }
       return sb.toString();
@@ -484,7 +484,7 @@ public abstract class SVCBBase extends Record {
       if (string == null || string.isEmpty()) {
         throw new TextParseException("Non-empty base64 value must be specified for ech");
       }
-      data = Base64.getDecoder().decode(string);
+      data = base64.fromString(string);
     }
 
     @Override
@@ -494,7 +494,7 @@ public abstract class SVCBBase extends Record {
 
     @Override
     public String toString() {
-      return Base64.getEncoder().encodeToString(data);
+      return base64.toString(data);
     }
   }
 
@@ -531,7 +531,7 @@ public abstract class SVCBBase extends Record {
       if (string == null || string.isEmpty()) {
         throw new TextParseException("Non-empty base64 value must be specified for echconfig");
       }
-      data = Base64.getDecoder().decode(string);
+      data = base64.fromString(string);
     }
 
     @Override
@@ -541,7 +541,7 @@ public abstract class SVCBBase extends Record {
 
     @Override
     public String toString() {
-      return Base64.getEncoder().encodeToString(data);
+      return base64.toString(data);
     }
   }
 
@@ -725,10 +725,10 @@ public abstract class SVCBBase extends Record {
     sb.append(svcPriority);
     sb.append(" ");
     sb.append(targetName);
-    for (Integer key : svcParams.keySet()) {
+    for (Map.Entry<Integer, ParameterBase> entry : svcParams.entrySet()) {
       sb.append(" ");
-      sb.append(parameters.getText(key));
-      ParameterBase param = svcParams.get(key);
+      sb.append(parameters.getText(entry.getKey()));
+      ParameterBase param = entry.getValue();
       String value = param.toString();
       if (value != null && !value.isEmpty()) {
         sb.append("=");
@@ -801,9 +801,9 @@ public abstract class SVCBBase extends Record {
   protected void rrToWire(DNSOutput out, Compression c, boolean canonical) {
     out.writeU16(svcPriority);
     targetName.toWire(out, null, canonical);
-    for (Integer key : svcParams.keySet()) {
-      out.writeU16(key);
-      ParameterBase param = svcParams.get(key);
+    for (Map.Entry<Integer, ParameterBase> entry : svcParams.entrySet()) {
+      out.writeU16(entry.getKey());
+      ParameterBase param = entry.getValue();
       byte[] value = param.toWire();
       out.writeU16(value.length);
       out.writeByteArray(value);

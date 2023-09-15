@@ -370,7 +370,7 @@ public class SimpleResolver implements Resolver {
     if (tcp) {
       result = NioTcpClient.sendrecv(localAddress, address, query, out, timeoutValue);
     } else {
-      result = NioUdpClient.sendrecv(localAddress, address, out, udpSize, timeoutValue);
+      result = NioUdpClient.sendrecv(localAddress, address, query, out, udpSize, timeoutValue);
     }
 
     return result.thenComposeAsync(
@@ -399,6 +399,12 @@ public class SimpleResolver implements Resolver {
             response = parseMessage(in);
           } catch (WireParseException e) {
             f.completeExceptionally(e);
+            return f;
+          }
+
+          if (response.getQuestion() == null) {
+            f.completeExceptionally(
+                new WireParseException("invalid message: question section missing"));
             return f;
           }
 

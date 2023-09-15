@@ -47,13 +47,13 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <target.jdk>8</target.jdk>
 
-        <org.junit.version>5.8.2</org.junit.version>
-        <mockito.version>4.3.1</mockito.version>
-        <slf4j.version>1.7.35</slf4j.version>
-        <lombok.version>1.18.22</lombok.version>
-        <jna.version>5.9.0</jna.version>
-        <bouncycastle.version>1.69</bouncycastle.version>
-        <vertx.version>4.2.4</vertx.version>
+        <org.junit.version>5.10.0</org.junit.version>
+        <mockito.version>4.11.0</mockito.version>
+        <slf4j.version>1.7.36</slf4j.version>
+        <lombok.version>1.18.28</lombok.version>
+        <jna.version>5.13.0</jna.version>
+        <bouncycastle.version>1.76</bouncycastle.version>
+        <vertx.version>4.4.4</vertx.version>
 
         <sonar.projectKey>dnsjava_dnsjava</sonar.projectKey>
         <sonar.organization>dnsjava</sonar.organization>
@@ -68,7 +68,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
-                <version>3.0.1</version>
+                <version>3.1.0</version>
                 <executions>
                     <execution>
                         <id>sign-artifacts</id>
@@ -89,7 +89,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.11.0</version>
                 <configuration>
                     <compilerArgument>-Xlint:unchecked</compilerArgument>
                     <annotationProcessorPaths>
@@ -105,23 +105,28 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>3.3.0</version>
             </plugin>
 
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
-                <version>5.1.2</version>
+                <version>5.1.9</version>
                 <extensions>true</extensions>
                 <configuration>
+                    <niceManifest>true</niceManifest>
+                    <excludeDependencies>lombok</excludeDependencies>
                     <instructions>
                         <Bundle-Name>dnsjava is an implementation of DNS in Java</Bundle-Name>
                         <Bundle-SymbolicName>org.xbill.dns</Bundle-SymbolicName>
                         <Automatic-Module-Name>org.dnsjava</Automatic-Module-Name>
                         <_noclassforname>true</_noclassforname>
+                        <_donotcopy>android|sun</_donotcopy>
+                        <_nouses>true</_nouses>
                         <Export-Package>
                             org.xbill.DNS.*
                         </Export-Package>
+                        <Private-Package>!sun.*,.</Private-Package>
                         <Import-Package>
                             !org.xbill.DNS*,
                             !sun.*,
@@ -148,7 +153,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.3.1</version>
+                <version>3.5.0</version>
                 <configuration>
                     <source>${target.jdk}</source>
                     <debug>true</debug>
@@ -161,7 +166,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
+                <version>3.1.2</version>
                 <configuration>
                     <includes>
                         <!-- Override default config to include inner test classes -->
@@ -177,7 +182,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.7</version>
+                <version>0.8.10</version>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>
@@ -192,13 +197,30 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
+                    <execution>
+                        <id>default-cli</id>
+                        <goals>
+                            <goal>merge</goal>
+                        </goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <directory>${project.build.directory}</directory>
+                                    <includes>
+                                        <include>jacoco-*.exec</include>
+                                    </includes>
+                                </fileSet>
+                            </fileSets>
+                            <destFile>${project.build.directory}/jacoco.exec</destFile>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
 
             <plugin>
                 <groupId>com.github.siom79.japicmp</groupId>
                 <artifactId>japicmp-maven-plugin</artifactId>
-                <version>0.15.4</version>
+                <version>0.17.2</version>
                 <configuration>
                     <newVersion>
                         <file>
@@ -212,31 +234,23 @@
                         <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
                         <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
                         <excludes>
-                            <!-- JDK9 removed the Nameservice SPI as per bug 8134577. -->
-                            <exclude>org.xbill.DNS.spi</exclude>
+                            <!-- Ignore classes that we need for compilation only -->
+                            <exclude>android</exclude>
+                            <exclude>sun</exclude>
                             <!-- internal API detected as public -->
                             <exclude>org.xbill.DNS.config.IPHlpAPI</exclude>
+                            <!-- package-private class converted to public interface, the tool is confused -->
+                            <!-- TODO: remove when 3.6.0 is released -->
+                            <exclude>org.xbill.DNS.dnssec.TrustAnchorStore</exclude>
                         </excludes>
+                        <!-- TODO: remove when 3.6.0 is released -->
+                        <ignoreMissingClasses>true</ignoreMissingClasses>
                         <overrideCompatibilityChangeParameters>
                             <overrideCompatibilityChangeParameter>
                                 <compatibilityChange>ANNOTATION_DEPRECATED_ADDED</compatibilityChange>
                                 <semanticVersionLevel>PATCH</semanticVersionLevel>
                                 <sourceCompatible>true</sourceCompatible>
                                 <binaryCompatible>true</binaryCompatible>
-                            </overrideCompatibilityChangeParameter>
-                            <overrideCompatibilityChangeParameter>
-                                <!-- https://github.com/siom79/japicmp/issues/201 -->
-                                <compatibilityChange>METHOD_NEW_DEFAULT</compatibilityChange>
-                                <semanticVersionLevel>PATCH</semanticVersionLevel>
-                                <binaryCompatible>true</binaryCompatible>
-                                <sourceCompatible>true</sourceCompatible>
-                            </overrideCompatibilityChangeParameter>
-                            <overrideCompatibilityChangeParameter>
-                                <!-- https://github.com/siom79/japicmp/issues/281 -->
-                                <compatibilityChange>METHOD_ABSTRACT_ADDED_IN_IMPLEMENTED_INTERFACE</compatibilityChange>
-                                <semanticVersionLevel>PATCH</semanticVersionLevel>
-                                <binaryCompatible>true</binaryCompatible>
-                                <sourceCompatible>true</sourceCompatible>
                             </overrideCompatibilityChangeParameter>
                         </overrideCompatibilityChangeParameters>
                     </parameter>
@@ -268,7 +282,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.1.2</version>
+                <version>3.3.0</version>
                 <executions>
                     <execution>
                         <id>check</id>
@@ -292,7 +306,7 @@
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>9.2</version>
+                        <version>9.3</version>
                     </dependency>
                 </dependencies>
             </plugin>
@@ -300,13 +314,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
-                <version>2.8.2</version>
+                <version>3.1.1</version>
             </plugin>
 
             <plugin>
                 <groupId>org.sonatype.plugins</groupId>
                 <artifactId>nexus-staging-maven-plugin</artifactId>
-                <version>1.6.8</version>
+                <version>1.6.13</version>
                 <extensions>true</extensions>
                 <configuration>
                     <serverId>ossrh</serverId>
@@ -318,7 +332,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>animal-sniffer-maven-plugin</artifactId>
-                <version>1.20</version>
+                <version>1.23</version>
                 <configuration>
                     <signature>
                         <groupId>net.sf.androidscents.signature</groupId>
@@ -345,13 +359,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>3.3.1</version>
             </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-install-plugin</artifactId>
-                <version>2.5.2</version>
+                <version>3.1.1</version>
             </plugin>
         </plugins>
     </build>
@@ -369,12 +383,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.robolectric</groupId>
-            <artifactId>android-all</artifactId>
-            <version>12-robolectric-7732740</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna</artifactId>
             <version>${jna.version}</version>
@@ -388,7 +396,7 @@
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
+            <artifactId>bcprov-jdk18on</artifactId>
             <version>${bouncycastle.version}</version>
             <scope>test</scope>
         </dependency>
@@ -463,8 +471,7 @@
         </profile>
 
         <profile>
-            <!-- JDK9 removed the Nameservice SPI as per bug 8134577. There's no replacement. -->
-            <id>no-spi-on-java9</id>
+            <id>java9</id>
             <activation>
                 <jdk>[9,)</jdk>
             </activation>
@@ -476,17 +483,6 @@
                         <artifactId>maven-compiler-plugin</artifactId>
                         <configuration>
                             <release>${target.jdk}</release>
-                            <excludes>
-                                <exclude>org/xbill/DNS/spi/**</exclude>
-                            </excludes>
-                        </configuration>
-                    </plugin>
-
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <configuration>
-                            <excludePackageNames>*.spi</excludePackageNames>
                         </configuration>
                     </plugin>
 
@@ -500,15 +496,6 @@
                         </configuration>
                     </plugin>
                 </plugins>
-
-                <resources>
-                    <resource>
-                        <directory>src/main/resources</directory>
-                        <excludes>
-                            <exclude>META-INF/services/sun.net.spi.nameservice.NameServiceDescriptor</exclude>
-                        </excludes>
-                    </resource>
-                </resources>
             </build>
         </profile>
     </profiles>

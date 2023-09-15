@@ -76,6 +76,9 @@ public class TLSARecord extends Record {
     this.certificateUsage = checkU8("certificateUsage", certificateUsage);
     this.selector = checkU8("selector", selector);
     this.matchingType = checkU8("matchingType", matchingType);
+    if (certificateAssociationData == null || certificateAssociationData.length == 0) {
+      throw new IllegalArgumentException("certificateAssociationData must not be null or empty");
+    }
     this.certificateAssociationData =
         checkByteArrayLength("certificateAssociationData", certificateAssociationData, 0xFFFF);
   }
@@ -115,6 +118,9 @@ public class TLSARecord extends Record {
     selector = in.readU8();
     matchingType = in.readU8();
     certificateAssociationData = in.readByteArray();
+    if (certificateAssociationData.length == 0) {
+      throw new WireParseException("end of input");
+    }
   }
 
   @Override
@@ -128,16 +134,13 @@ public class TLSARecord extends Record {
   /** Converts rdata to a String */
   @Override
   protected String rrToString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append(certificateUsage);
-    sb.append(" ");
-    sb.append(selector);
-    sb.append(" ");
-    sb.append(matchingType);
-    sb.append(" ");
-    sb.append(base16.toString(certificateAssociationData));
-
-    return sb.toString();
+    return certificateUsage
+        + " "
+        + selector
+        + " "
+        + matchingType
+        + " "
+        + base16.toString(certificateAssociationData);
   }
 
   @Override
