@@ -31,7 +31,11 @@ import org.xbill.DNS.TextParseException;
 import org.xbill.DNS.Tokenizer;
 import org.xbill.DNS.Type;
 
-/** @author Brian Wellington &lt;bwelling@xbill.org&gt; */
+/**
+ * A basic implementation to manipulate DNS zones.
+ *
+ * @author Brian Wellington &lt;bwelling@xbill.org&gt;
+ */
 public class update {
 
   Message query, response;
@@ -94,7 +98,7 @@ public class update {
           log.println("> " + line);
         }
 
-        if (line.length() == 0 || line.charAt(0) == '#') {
+        if (line.isEmpty() || line.charAt(0) == '#') {
           continue;
         }
 

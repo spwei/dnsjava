@@ -55,7 +55,11 @@ public abstract class Record implements Cloneable, Comparable<Record>, Serializa
 
   protected Record() {}
 
-  /** @since 3.1 */
+  /**
+   * Initialize the basic fields of a record.
+   *
+   * @since 3.1
+   */
   protected Record(Name name, int type, int dclass, long ttl) {
     if (!name.isAbsolute()) {
       throw new RelativeNameException(name);
@@ -339,7 +343,7 @@ public abstract class Record implements Cloneable, Comparable<Record>, Serializa
     }
     sb.append(Type.string(type));
     String rdata = rrToString();
-    if (!rdata.equals("")) {
+    if (!rdata.isEmpty()) {
       sb.append("\t");
       sb.append(rdata);
     }
@@ -560,6 +564,18 @@ public abstract class Record implements Cloneable, Comparable<Record>, Serializa
    */
   public boolean sameRRset(Record rec) {
     return getRRsetType() == rec.getRRsetType() && dclass == rec.dclass && name.equals(rec.name);
+  }
+
+  /**
+   * Determines if this Record could be part of the passed RRset. This compares the name, type, and
+   * class of the Record and the set.
+   *
+   * @since 3.6
+   */
+  public boolean sameRRset(RRset set) {
+    return getRRsetType() == set.getType()
+        && dclass == set.getDClass()
+        && name.equals(set.getName());
   }
 
   /**

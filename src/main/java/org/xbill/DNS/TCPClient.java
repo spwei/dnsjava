@@ -14,7 +14,7 @@ import java.nio.channels.SocketChannel;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
-final class TCPClient {
+class TCPClient implements AutoCloseable {
   private final long startTime;
   private final Duration timeout;
   private final SelectionKey key;
@@ -144,7 +144,8 @@ final class TCPClient {
     }
   }
 
-  void cleanup() throws IOException {
+  @Override
+  public void close() throws IOException {
     key.selector().close();
     key.channel().close();
   }

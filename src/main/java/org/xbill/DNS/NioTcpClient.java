@@ -18,24 +18,27 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+import org.xbill.DNS.io.TcpIoClient;
 
 @Slf4j
-@UtilityClass
-final class NioTcpClient extends NioClient {
-  private static final Queue<ChannelState> registrationQueue = new ConcurrentLinkedQueue<>();
-  private static final Map<ChannelKey, ChannelState> channelMap = new ConcurrentHashMap<>();
+final class NioTcpClient extends NioClient implements TcpIoClient {
+  private final Queue<ChannelState> registrationQueue = new ConcurrentLinkedQueue<>();
+  private final Map<ChannelKey, ChannelState> channelMap = new ConcurrentHashMap<>();
 
-  static {
-    setRegistrationsTask(NioTcpClient::processPendingRegistrations);
-    setTimeoutTask(NioTcpClient::checkTransactionTimeouts);
-    setCloseTask(NioTcpClient::closeTcp);
+  NioTcpClient() {
+    setRegistrationsTask(this::processPendingRegistrations, true);
+    setTimeoutTask(this::checkTransactionTimeouts, true);
+    setCloseTask(this::closeTcp, true);
   }
 
-  private static void processPendingRegistrations() {
+  private void processPendingRegistrations() {
     while (!registrationQueue.isEmpty()) {
-      ChannelState state = registrationQueue.remove();
+      ChannelState state = registrationQueue.poll();
+      if (state == null) {
+        continue;
+      }
+
       try {
         final Selector selector = selector();
         if (!state.channel.isConnected()) {
@@ -49,7 +52,7 @@ final class NioTcpClient extends NioClient {
     }
   }
 
-  private static void checkTransactionTimeouts() {
+  private void checkTransactionTimeouts() {
     for (ChannelState state : channelMap.values()) {
       for (Iterator<Transaction> it = state.pendingTransactions.iterator(); it.hasNext(); ) {
         Transaction t = it.next();
@@ -61,7 +64,7 @@ final class NioTcpClient extends NioClient {
     }
   }
 
-  private static void closeTcp() {
+  private void closeTcp() {
     registrationQueue.clear();
     EOFException closing = new EOFException("Client is closing");
     channelMap.forEach((key, state) -> state.handleTransactionException(closing));
@@ -89,7 +92,7 @@ final class NioTcpClient extends NioClient {
           queryData);
 
       // combine length+message to avoid multiple TCP packets
-      // https://tools.ietf.org/html/rfc7766#section-8
+      // https://datatracker.ietf.org/doc/html/rfc7766#section-8
       ByteBuffer buffer = ByteBuffer.allocate(queryData.length + 2);
       buffer.put((byte) (queryData.length >>> 8));
       buffer.put((byte) (queryData.length & 0xFF));
@@ -112,8 +115,8 @@ final class NioTcpClient extends NioClient {
   }
 
   @RequiredArgsConstructor
-  private static class ChannelState implements KeyProcessor {
-    final SocketChannel channel;
+  private class ChannelState implements KeyProcessor {
+    private final SocketChannel channel;
     final Queue<Transaction> pendingTransactions = new ConcurrentLinkedQueue<>();
     ByteBuffer responseLengthData = ByteBuffer.allocate(2);
     ByteBuffer responseData = ByteBuffer.allocate(Message.MAXLENGTH);
@@ -259,7 +262,8 @@ final class NioTcpClient extends NioClient {
     final InetSocketAddress remote;
   }
 
-  static CompletableFuture<byte[]> sendrecv(
+  @Override
+  public CompletableFuture<byte[]> sendAndReceiveTcp(
       InetSocketAddress local,
       InetSocketAddress remote,
       Message query,

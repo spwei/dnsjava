@@ -49,17 +49,17 @@ public class ZoneTransferIn {
   private static final int AXFR = 6;
   private static final int END = 7;
 
-  private Name zname;
+  private final Name zname;
   private int qtype;
   private int dclass;
-  private long ixfr_serial;
-  private boolean want_fallback;
+  private final long ixfr_serial;
+  private final boolean want_fallback;
   private ZoneTransferHandler handler;
 
   private SocketAddress localAddress;
-  private SocketAddress address;
+  private final SocketAddress address;
   private TCPClient client;
-  private TSIG tsig;
+  private final TSIG tsig;
   private TSIG.StreamVerifier verifier;
   private Duration timeout = Duration.ofMinutes(15);
 
@@ -155,7 +155,7 @@ public class ZoneTransferIn {
     public void handleRecord(Record r) {
       if (ixfr != null) {
         Delta delta = ixfr.get(ixfr.size() - 1);
-        if (delta.adds.size() > 0) {
+        if (!delta.adds.isEmpty()) {
           delta.adds.add(r);
         } else {
           delta.deletes.add(r);
@@ -166,9 +166,7 @@ public class ZoneTransferIn {
     }
   }
 
-  private ZoneTransferIn() {}
-
-  private ZoneTransferIn(
+  ZoneTransferIn(
       Name zone, int xfrtype, long serial, boolean fallback, SocketAddress address, TSIG key) {
     this.address = address;
     this.tsig = key;
@@ -330,11 +328,15 @@ public class ZoneTransferIn {
   }
 
   private void openConnection() throws IOException {
-    client = new TCPClient(timeout);
+    client = createTcpClient(timeout);
     if (localAddress != null) {
       client.bind(localAddress);
     }
     client.connect(address);
+  }
+
+  TCPClient createTcpClient(Duration timeout) throws IOException {
+    return new TCPClient(timeout);
   }
 
   private void sendQuery() throws IOException {
@@ -477,9 +479,10 @@ public class ZoneTransferIn {
   private void closeConnection() {
     try {
       if (client != null) {
-        client.cleanup();
+        client.close();
       }
     } catch (IOException e) {
+      // Ignore
     }
   }
 
@@ -490,7 +493,7 @@ public class ZoneTransferIn {
       if (e instanceof WireParseException) {
         throw (WireParseException) e;
       }
-      throw new WireParseException("Error parsing message");
+      throw new WireParseException("Error parsing message", e);
     }
   }
 
@@ -499,14 +502,24 @@ public class ZoneTransferIn {
     while (state != END) {
       byte[] in = client.recv();
       Message response = parseMessage(in);
+      List<Record> answers = response.getSection(Section.ANSWER);
       if (response.getHeader().getRcode() == Rcode.NOERROR && verifier != null) {
-        int error = verifier.verify(response, in);
+        int error =
+            verifier.verify(response, in, answers.get(answers.size() - 1).getType() == Type.SOA);
         if (error != Rcode.NOERROR) {
-          fail("TSIG failure: " + Rcode.TSIGstring(error));
+          if (verifier.getErrorMessage() != null) {
+            fail(
+                "TSIG failure: "
+                    + Rcode.TSIGstring(error)
+                    + " ("
+                    + verifier.getErrorMessage()
+                    + ")");
+          } else {
+            fail("TSIG failure: " + Rcode.TSIGstring(error));
+          }
         }
       }
 
-      List<Record> answers = response.getSection(Section.ANSWER);
       if (state == INITIALSOA) {
         int rcode = response.getRcode();
         if (rcode != Rcode.NOERROR) {
@@ -532,10 +545,6 @@ public class ZoneTransferIn {
 
       for (Record answer : answers) {
         parseRR(answer);
-      }
-
-      if (state == END && verifier != null && !response.isVerified()) {
-        fail("last message must be signed");
       }
     }
   }
@@ -567,8 +576,8 @@ public class ZoneTransferIn {
    *     itself.
    */
   public void run() throws IOException, ZoneTransferException {
-    BasicHandler handler = new BasicHandler();
-    run(handler);
+    BasicHandler basicHandler = new BasicHandler();
+    run(basicHandler);
   }
 
   private BasicHandler getBasicHandler() throws IllegalArgumentException {
@@ -594,8 +603,8 @@ public class ZoneTransferIn {
    *     not stored.
    */
   public List<Record> getAXFR() {
-    BasicHandler handler = getBasicHandler();
-    return handler.axfr;
+    BasicHandler basicHandler = getBasicHandler();
+    return basicHandler.axfr;
   }
 
   /**
@@ -613,8 +622,8 @@ public class ZoneTransferIn {
    *     not stored.
    */
   public List<Delta> getIXFR() {
-    BasicHandler handler = getBasicHandler();
-    return handler.ixfr;
+    BasicHandler basicHandler = getBasicHandler();
+    return basicHandler.ixfr;
   }
 
   /**
@@ -625,7 +634,7 @@ public class ZoneTransferIn {
    *     not stored.
    */
   public boolean isCurrent() {
-    BasicHandler handler = getBasicHandler();
-    return handler.axfr == null && handler.ixfr == null;
+    BasicHandler basicHandler = getBasicHandler();
+    return basicHandler.axfr == null && basicHandler.ixfr == null;
   }
 }

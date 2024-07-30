@@ -11,8 +11,8 @@ import java.net.UnknownHostException;
  * Address Record - maps a domain name to an Internet address
  *
  * @author Brian Wellington
- * @see <a href="https://tools.ietf.org/html/rfc1035">RFC 1035: Domain Names - Implementation and
- *     Specification</a>
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc1035">RFC 1035: Domain Names -
+ *     Implementation and Specification</a>
  */
 public class ARecord extends Record {
   private int addr;
@@ -46,6 +46,20 @@ public class ARecord extends Record {
       throw new IllegalArgumentException("invalid IPv4 address");
     }
     addr = fromArray(address.getAddress());
+  }
+
+  /**
+   * Creates an A Record from the given data
+   *
+   * @param address The address that the name refers to
+   * @since 3.6
+   */
+  public ARecord(Name name, int dclass, long ttl, byte[] address) {
+    super(name, Type.A, dclass, ttl);
+    if (address == null || address.length != 4) {
+      throw new IllegalArgumentException("invalid IPv4 address");
+    }
+    addr = fromArray(address);
   }
 
   @Override
