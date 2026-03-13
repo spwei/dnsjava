@@ -2,7 +2,7 @@
 
 image:https://github.com/dnsjava/dnsjava/actions/workflows/build.yml/badge.svg["GitHub CI Build Status",link="https://github.com/dnsjava/dnsjava/actions/workflows/build.yml"]
 image:https://codecov.io/gh/dnsjava/dnsjava/branch/master/graph/badge.svg?token=FKmcwl1Oys["codecov",link="https://codecov.io/gh/dnsjava/dnsjava"]
-image:https://maven-badges.herokuapp.com/maven-central/dnsjava/dnsjava/badge.svg["Maven Central",link="https://search.maven.org/artifact/dnsjava/dnsjava"]
+image:https://img.shields.io/maven-central/v/dnsjava/dnsjava["Maven Central",link="https://central.sonatype.com/artifact/dnsjava/dnsjava"]
 image:https://javadoc.io/badge/dnsjava/dnsjava.svg["Javadocs",link="https://javadoc.io/doc/dnsjava/dnsjava"]
 
 == Overview
@@ -103,11 +103,24 @@ Do NOT use it.
 |true
 |false
 
+.2+|dnsjava.hostsfile.max_size_bytes
+3+|Set the size of the hosts file to be loaded at a time, in bytes.
+|Integer
+|16384
+|1000000
+
 .2+|dnsjava.nio.selector_timeout
 3+|Set selector timeout in milliseconds. Default/Max 1000, Min 1.
 |Integer
 |1000
 |700
+
+.2+|dnsjava.nio.register_shutdown_hook
+3+|Register Shutdown Hook for automatic termination of NIO.
+If disabled, the nio selector thread will not automatically clean up on JVM termination.
+|Boolean
+|True
+|False
 
 .2+|dnsjava.harden_unknown_additional
 3+|Harden against unknown records in the authority section and additional section.
@@ -129,7 +142,7 @@ If disabled, such records are copied from the upstream and presented to the clie
 |1000
 |5000
 
-.2+|org.jitsi.dnssec.nsec3.iterations.N
+.2+|dnsjava.dnssec.nsec3.iterations.N
 3+a|Maximum iteration count for the NSEC3 hashing function depending on the key size N. The defaults are from https://datatracker.ietf.org/doc/html/rfc5155#section-10.3[RFC5155].
 |Integer
 2+a|- 1024 bit keys: 150 iterations
@@ -180,14 +193,14 @@ This is limited to avoid the 'KeyTrap' vulnerability (CVE-2023-50387).
 |4
 |2
 
-.2+|dnsjava.dnssec.algorithm_enabled.ID
+.2+|dnsjava.dnssec.algorithm.ID
 3+|Enable or disable a DS/DNSKEY algorithm.
 See
 https://datatracker.ietf.org/doc/html/rfc8624#section-3.1[RFC8624] for recommended values.
 Note that algorithm number 1, `RSAMD5`, is disabled and cannot be enabled with this property.
 |Boolean
 2+|Disable ED448:
-`dnsjava.dnssec.algorithm_enabled.16=false`
+`dnsjava.dnssec.algorithm.16=false`
 
 .2+|dnsjava.dnssec.algorithm_rsa_min_key_size
 3+|Set the minimum size, in bits, for RSA keys.
@@ -195,13 +208,13 @@ Note that algorithm number 1, `RSAMD5`, is disabled and cannot be enabled with t
 |1024
 |512
 
-.2+|dnsjava.dnssec.digest_enabled.ID
+.2+|dnsjava.dnssec.digest.ID
 3+|Enable or disable a DS record digest algorithm.
 See
 https://datatracker.ietf.org/doc/html/rfc8624#section-3.3[RFC8624] for recommended values.
 |Boolean
 2+|Disable SHA.1:
-`dnsjava.dnssec.digest_enabled.1=false`
+`dnsjava.dnssec.digest.1=false`
 
 |===
 
@@ -270,7 +283,8 @@ on the classpath
 * The link:USAGE.md[command line tools] were moved to the `org.xbill.DNS.tools`
 package
 
-* On Windows, https://github.com/java-native-access/jna[JNA] should be on the classpath for the search path and proper DNS server finding
+* On Windows, https://github.com/java-native-access/jna[JNA] should be on the classpath for the search path and proper DNS server finding.
+As of Java 24, note that additional JVM config is required, see https://javadoc.io/doc/net.java.dev.jna/jna/latest/index.html#special-considerations-for-jdk24--heading[Special considerations for JDK24+].
 
 * The `Resolver` API for custom resolvers has changed to use
 `CompletionStage<Message>` for asynchronous resolving.

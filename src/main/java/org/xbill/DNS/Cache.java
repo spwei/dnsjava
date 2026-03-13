@@ -4,6 +4,7 @@
 package org.xbill.DNS;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -164,17 +165,17 @@ public class Cache {
     }
 
     @Override
-    protected boolean removeEldestEntry(Map.Entry eldest) {
+    protected boolean removeEldestEntry(Map.Entry<Name, Object> eldest) {
       return maxsize >= 0 && size() > maxsize;
     }
   }
 
   private final CacheMap data;
+  private final int dclass;
   private int maxncache = -1;
   private int maxcache = -1;
-  private int dclass;
 
-  private static final int defaultMaxEntries = 50000;
+  private static final int DEFAULT_MAX_ENTRIES = 50000;
 
   /**
    * Creates an empty Cache
@@ -184,7 +185,7 @@ public class Cache {
    */
   public Cache(int dclass) {
     this.dclass = dclass;
-    data = new CacheMap(defaultMaxEntries);
+    data = new CacheMap(DEFAULT_MAX_ENTRIES);
   }
 
   /**
@@ -198,12 +199,27 @@ public class Cache {
 
   /** Creates a Cache which initially contains all records in the specified file. */
   public Cache(String file) throws IOException {
-    data = new CacheMap(defaultMaxEntries);
-    try (Master m = new Master(file)) {
-      Record record;
-      while ((record = m.nextRecord()) != null) {
-        addRecord(record, Credibility.HINT);
+    this(new Master(file));
+  }
+
+  /**
+   * Creates a Cache which initially contains all records in the specified stream.
+   *
+   * @since 3.6.2
+   */
+  public Cache(InputStream input) throws IOException {
+    this(new Master(input));
+  }
+
+  private <T> Cache(Master m) throws IOException {
+    this();
+    try {
+      Record r;
+      while ((r = m.nextRecord()) != null) {
+        addRecord(r, Credibility.HINT);
       }
+    } finally {
+      m.close();
     }
   }
 
@@ -366,11 +382,9 @@ public class Cache {
     if (element == null) {
       CacheRRset crrset = new CacheRRset(r, cred, maxcache, isAuthenticated);
       addRRset(crrset, cred, isAuthenticated);
-    } else if (element.compareCredibility(cred) == 0) {
-      if (element instanceof CacheRRset) {
-        CacheRRset crrset = (CacheRRset) element;
-        crrset.addRR(r);
-      }
+    } else if (element.compareCredibility(cred) == 0 && element instanceof CacheRRset) {
+      CacheRRset crrset = (CacheRRset) element;
+      crrset.addRR(r);
     }
   }
 
@@ -639,7 +653,6 @@ public class Cache {
     int cred;
     int rcode = in.getHeader().getRcode();
     boolean completed = false;
-    List<RRset> answers, auth, addl;
     SetResponse response = null;
     HashSet<Name> additionalNames;
 
@@ -655,7 +668,7 @@ public class Cache {
 
     additionalNames = new HashSet<>();
 
-    answers = in.getSectionRRsets(Section.ANSWER);
+    List<RRset> answers = in.getSectionRRsets(Section.ANSWER);
     for (int i = 0; i < answers.size(); i++) {
       RRset answer = answers.get(i);
       if (answer.getDClass() != qclass) {
@@ -707,7 +720,7 @@ public class Cache {
       }
     }
 
-    auth = in.getSectionRRsets(Section.AUTHORITY);
+    List<RRset> auth = in.getSectionRRsets(Section.AUTHORITY);
     RRset soa = null;
     RRset ns = null;
     for (RRset rset : auth) {
@@ -754,8 +767,8 @@ public class Cache {
       markAdditional(ns, additionalNames);
     }
 
-    addl = in.getSectionRRsets(Section.ADDITIONAL);
-    for (RRset rRset : addl) {
+    List<RRset> additional = in.getSectionRRsets(Section.ADDITIONAL);
+    for (RRset rRset : additional) {
       int type = rRset.getType();
       if (type != Type.A && type != Type.AAAA && type != Type.A6) {
         continue;

@@ -59,9 +59,9 @@ public class Message implements Cloneable {
 
   private static final Record[] emptyRecordArray = new Record[0];
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked"})
   private Message(Header header) {
-    sections = new List[4];
+    sections = (List<Record>[]) new List<?>[4];
     this.header = header;
   }
 
@@ -467,10 +467,10 @@ public class Message implements Cloneable {
     return n - count;
   }
 
-  /* Returns true if the message could be rendered. */
-  private void toWire(DNSOutput out, int maxLength) {
+  /* Returns true if the message could be completely rendered (i.e. not truncated). */
+  private boolean toWire(DNSOutput out, int maxLength) {
     if (maxLength < Header.LENGTH) {
-      return;
+      return false;
     }
 
     int tempMaxLength = maxLength;
@@ -529,6 +529,8 @@ public class Message implements Cloneable {
       generatedTsig = tsigrec;
       out.writeU16At(additionalCount + 1, startpos + 10);
     }
+
+    return !Header.getFlag(flags, Flags.TC);
   }
 
   /**
@@ -546,10 +548,8 @@ public class Message implements Cloneable {
 
   /**
    * Returns an array containing the wire format representation of the Message with the specified
-   * maximum length. This will generate a truncated message (with the TC bit) if the message doesn't
-   * fit, and will also sign the message with the TSIG key set by a call to {@link #setTSIG(TSIG,
-   * int, TSIGRecord)}. This method may return an empty byte array if the message could not be
-   * rendered at all; this could happen if maxLength is smaller than a DNS header, for example.
+   * maximum length. Equivalent to calling {@link #toWire(int maxLength, boolean truncate)
+   * toWire(maxLength, true)}.
    *
    * <p>Do NOT use this method in conjunction with {@link TSIG#apply(Message, TSIGRecord)}, it
    * produces inconsistent results! Use {@link #setTSIG(TSIG, int, TSIGRecord)} instead.
@@ -563,6 +563,36 @@ public class Message implements Cloneable {
   public byte[] toWire(int maxLength) {
     DNSOutput out = new DNSOutput();
     toWire(out, maxLength);
+    size = out.current();
+    return out.toByteArray();
+  }
+
+  /**
+   * Returns an array containing the wire format representation of the Message with the specified
+   * maximum length. If {@code truncate} is {@code true} it will generate a truncated message (with
+   * the TC bit) if the message doesn't fit, otherwise an exception will be thrown. It will also
+   * sign the message with the TSIG key set by a call to {@link #setTSIG(TSIG, int, TSIGRecord)}.
+   * This method may return an empty byte array if the message could not be rendered at all; this
+   * could happen if maxLength is smaller than a DNS header, for example.
+   *
+   * <p>Do NOT use this method in conjunction with {@link TSIG#apply(Message, TSIGRecord)}, it
+   * produces inconsistent results! Use {@link #setTSIG(TSIG, int, TSIGRecord)} instead.
+   *
+   * @param maxLength The maximum length of the message.
+   * @return The wire format of the message, or an empty array if the message could not be rendered
+   *     into the specified length.
+   * @throws MessageSizeExceededException When the message size would exceed the specified {@code
+   *     maxLength}.
+   * @see Flags
+   * @see TSIG
+   */
+  public byte[] toWire(int maxLength, boolean truncate) throws MessageSizeExceededException {
+    DNSOutput out = new DNSOutput();
+    boolean completelyRendered = toWire(out, maxLength);
+    if (!completelyRendered && !truncate) {
+      throw new MessageSizeExceededException(maxLength);
+    }
+
     size = out.current();
     return out.toByteArray();
   }
@@ -676,7 +706,7 @@ public class Message implements Cloneable {
   @SuppressWarnings({"unchecked", "java:S2975"})
   public Message clone() {
     Message m = (Message) super.clone();
-    m.sections = new List[sections.length];
+    m.sections = (List<Record>[]) new List<?>[sections.length];
     for (int i = 0; i < sections.length; i++) {
       if (sections[i] != null) {
         m.sections[i] = new LinkedList<>(sections[i]);
@@ -780,9 +810,11 @@ public class Message implements Cloneable {
     List<RRset> additionalSectionSets = getSectionRRsets(Section.ADDITIONAL);
     List<RRset> authoritySectionSets = getSectionRRsets(Section.AUTHORITY);
 
-    List<RRset> cleanedAnswerSection = new ArrayList<>();
-    List<RRset> cleanedAuthoritySection = new ArrayList<>();
-    List<RRset> cleanedAdditionalSection = new ArrayList<>();
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    List<RRset>[] cleanedSection = new ArrayList[4];
+    cleanedSection[Section.ANSWER] = new ArrayList<>();
+    cleanedSection[Section.AUTHORITY] = new ArrayList<>();
+    cleanedSection[Section.ADDITIONAL] = new ArrayList<>();
     boolean hadNsInAuthority = false;
 
     // For the ANSWER section, remove all "irrelevant" records and add synthesized CNAMEs from
@@ -813,7 +845,7 @@ public class Message implements Cloneable {
         // If DNAME was queried, don't attempt to synthesize CNAME
         if (query.getQuestion().getType() != Type.DNAME) {
           // The DNAME is valid, accept it
-          cleanedAnswerSection.add(rrset);
+          cleanedSection[Section.ANSWER].add(rrset);
 
           // Check if the next rrset is correct CNAME, otherwise synthesize a CNAME
           RRset nextRRSet = answerSectionSets.size() >= i + 2 ? answerSectionSets.get(i + 1) : null;
@@ -833,7 +865,7 @@ public class Message implements Cloneable {
 
             // Add a synthesized CNAME; TTL=0 to avoid caching
             Name dnameTarget = sname.fromDNAME(dname);
-            cleanedAnswerSection.add(
+            cleanedSection[Section.ANSWER].add(
                 new RRset(new CNAMERecord(sname, dname.getDClass(), 0, dnameTarget)));
             sname = dnameTarget;
 
@@ -842,7 +874,7 @@ public class Message implements Cloneable {
               for (i++; i < answerSectionSets.size(); i++) {
                 rrset = answerSectionSets.get(i);
                 if (rrset.getName().equals(oldSname)) {
-                  cleanedAnswerSection.add(rrset);
+                  cleanedSection[Section.ANSWER].add(rrset);
                 } else {
                   break;
                 }
@@ -913,14 +945,14 @@ public class Message implements Cloneable {
         }
 
         sname = ((CNAMERecord) rrset.first()).getTarget();
-        cleanedAnswerSection.add(rrset);
+        cleanedSection[Section.ANSWER].add(rrset);
 
         // In CNAME ANY response, can have data after CNAME
         if (query.getQuestion().getType() == Type.ANY) {
           for (i++; i < answerSectionSets.size(); i++) {
             rrset = answerSectionSets.get(i);
             if (rrset.getName().equals(oldSname)) {
-              cleanedAnswerSection.add(rrset);
+              cleanedSection[Section.ANSWER].add(rrset);
             } else {
               break;
             }
@@ -943,9 +975,9 @@ public class Message implements Cloneable {
       }
 
       // Mark the additional names from relevant RRset as OK
-      cleanedAnswerSection.add(rrset);
+      cleanedSection[Section.ANSWER].add(rrset);
       if (sname.equals(rrset.getName())) {
-        addAdditionalRRset(rrset, additionalSectionSets, cleanedAdditionalSection);
+        addAdditionalRRset(rrset, additionalSectionSets, cleanedSection[Section.ADDITIONAL]);
       }
     }
 
@@ -1015,15 +1047,25 @@ public class Message implements Cloneable {
         }
       }
 
-      cleanedAuthoritySection.add(rrset);
-      addAdditionalRRset(rrset, additionalSectionSets, cleanedAdditionalSection);
+      cleanedSection[Section.AUTHORITY].add(rrset);
+      addAdditionalRRset(rrset, additionalSectionSets, cleanedSection[Section.ADDITIONAL]);
     }
 
     Message cleanedMessage = new Message(this.getHeader());
     cleanedMessage.sections[Section.QUESTION] = this.sections[Section.QUESTION];
-    cleanedMessage.sections[Section.ANSWER] = rrsetListToRecords(cleanedAnswerSection);
-    cleanedMessage.sections[Section.AUTHORITY] = rrsetListToRecords(cleanedAuthoritySection);
-    cleanedMessage.sections[Section.ADDITIONAL] = rrsetListToRecords(cleanedAdditionalSection);
+    for (int section : new int[] {Section.ANSWER, Section.AUTHORITY, Section.ADDITIONAL}) {
+      cleanedMessage.sections[section] = rrsetListToRecords(cleanedSection[section]);
+
+      // Fixup counts in the header
+      cleanedMessage
+          .getHeader()
+          .setCount(
+              section,
+              cleanedMessage.sections[section] == null
+                  ? 0
+                  : cleanedMessage.sections[section].size());
+    }
+
     return cleanedMessage;
   }
 
@@ -1033,7 +1075,7 @@ public class Message implements Cloneable {
     if (throwOnIrrelevantRecord) {
       throw new WireParseException(
           String.format(
-              format.replace("{}", "%s") + this,
+              format.replace("{}", "%s"),
               rrset.getName(),
               DClass.string(rrset.getDClass()),
               Type.string(rrset.getType()),

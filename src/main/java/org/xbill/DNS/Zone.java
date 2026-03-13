@@ -4,6 +4,7 @@
 package org.xbill.DNS;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,9 +35,9 @@ public class Zone implements Serializable, Iterable<RRset> {
   /** A secondary zone. */
   public static final int SECONDARY = 2;
 
-  private final transient ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
-  private final transient ReentrantReadWriteLock.ReadLock readLock = readWriteLock.readLock();
-  private final transient ReentrantReadWriteLock.WriteLock writeLock = readWriteLock.writeLock();
+  private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+  private final ReentrantReadWriteLock.ReadLock readLock = readWriteLock.readLock();
+  private final ReentrantReadWriteLock.WriteLock writeLock = readWriteLock.writeLock();
 
   private final Map<Name, Object> data = new ConcurrentSkipListMap<>();
 
@@ -47,10 +48,9 @@ public class Zone implements Serializable, Iterable<RRset> {
   @Getter private Name origin;
 
   /** Returns the zone origin's {@link NSRecord NS records}. */
-  private RRset NS;
+  private RRset nsRRset;
 
-  /** Returns the zone's {@link SOARecord SOA record}. */
-  @Getter private SOARecord SOA;
+  private SOARecord soaRecord;
 
   /** Returns the zone's {@link DClass class}. */
   public int getDClass() {
@@ -59,10 +59,39 @@ public class Zone implements Serializable, Iterable<RRset> {
 
   /** Returns the zone origin's {@link NSRecord NS records}. */
   public RRset getNS() {
-    return withReadLock(() -> new RRset(NS));
+    return withReadLock(() -> new RRset(nsRRset));
+  }
+
+  /** Returns the zone's {@link SOARecord SOA record}. */
+  public SOARecord getSOA() {
+    return soaRecord;
   }
 
   // ------------- Constructors
+
+  /**
+   * Creates a zone from the records in the specified master file.
+   *
+   * @param zone The name of the zone.
+   * @param input The master file to read from.
+   * @throws IllegalArgumentException if {@code zone} or {@code file} is {@code null}.
+   * @throws IOException if the zone file does not contain a {@link SOARecord} or no {@link
+   *     NSRecord}s.
+   * @see Master
+   * @since 3.6.2
+   */
+  public Zone(Name zone, InputStream input) throws IOException {
+    if (zone == null) {
+      throw new IllegalArgumentException("no zone name specified");
+    }
+
+    if (input == null) {
+      throw new IllegalArgumentException("no input stream specified");
+    }
+
+    this.origin = zone;
+    fromMasterFile(new Master(input, origin));
+  }
 
   /**
    * Creates a zone from the records in the specified master file.
@@ -83,15 +112,8 @@ public class Zone implements Serializable, Iterable<RRset> {
       throw new IllegalArgumentException("no file name specified");
     }
 
-    try (Master m = new Master(file, zone)) {
-      Record record;
-
-      origin = zone;
-      while ((record = m.nextRecord()) != null) {
-        maybeAddRecord(record);
-      }
-    }
-    validate();
+    this.origin = zone;
+    fromMasterFile(new Master(file, origin));
   }
 
   /**
@@ -107,13 +129,16 @@ public class Zone implements Serializable, Iterable<RRset> {
     if (zone == null) {
       throw new IllegalArgumentException("no zone name specified");
     }
+
     if (records == null) {
       throw new IllegalArgumentException("no records are specified");
     }
+
     origin = zone;
-    for (Record record : records) {
-      maybeAddRecord(record);
+    for (Record r : records) {
+      maybeAddRecord(r);
     }
+
     validate();
   }
 
@@ -156,6 +181,18 @@ public class Zone implements Serializable, Iterable<RRset> {
     fromXFR(xfrin);
   }
 
+  private void fromMasterFile(Master m) throws IOException {
+    try {
+      Record r;
+      while ((r = m.nextRecord()) != null) {
+        maybeAddRecord(r);
+      }
+    } finally {
+      m.close();
+    }
+    validate();
+  }
+
   private void fromXFR(ZoneTransferIn xfrin) throws IOException, ZoneTransferException {
     origin = xfrin.getName();
     xfrin.run();
@@ -163,22 +200,22 @@ public class Zone implements Serializable, Iterable<RRset> {
       throw new IllegalArgumentException("zones can only be created from AXFRs");
     }
 
-    for (Record record : xfrin.getAXFR()) {
-      maybeAddRecord(record);
+    for (Record r : xfrin.getAXFR()) {
+      maybeAddRecord(r);
     }
     validate();
   }
 
-  private void maybeAddRecord(Record record) throws IOException {
-    int rtype = record.getType();
-    Name name = record.getName();
+  private void maybeAddRecord(Record r) throws IOException {
+    int rtype = r.getType();
+    Name name = r.getName();
 
     if (rtype == Type.SOA && !name.equals(origin)) {
       throw new IOException("SOA owner " + name + " does not match zone origin " + origin);
     }
 
     if (name.subdomain(origin)) {
-      addRecord(record);
+      addRecord(r);
     }
   }
 
@@ -192,10 +229,10 @@ public class Zone implements Serializable, Iterable<RRset> {
     if (rrset == null || rrset.size() != 1) {
       throw new IOException(origin + ": exactly 1 SOA must be specified");
     }
-    SOA = (SOARecord) rrset.first();
+    soaRecord = (SOARecord) rrset.first();
 
-    NS = oneRRsetWithoutLock(originNode, Type.NS);
-    if (NS == null) {
+    nsRRset = oneRRsetWithoutLock(originNode, Type.NS);
+    if (nsRRset == null) {
       throw new IOException(origin + ": no NS set specified");
     }
   }
@@ -234,6 +271,7 @@ public class Zone implements Serializable, Iterable<RRset> {
 
     Name name = r.getName();
     int rtype = r.getRRsetType();
+    int actualType = r.getType();
 
     if (rtype == Type.SOA && !name.equals(origin)) {
       throw new IllegalArgumentException(
@@ -254,9 +292,9 @@ public class Zone implements Serializable, Iterable<RRset> {
           } else {
             // Adding a SOA must replace any existing record. We validated before that the zone name
             // didn't change
-            if (rtype == Type.SOA) {
-              rrset.deleteRR(SOA);
-              SOA = (SOARecord) r;
+            if (actualType == Type.SOA) {
+              rrset.deleteRR(soaRecord);
+              soaRecord = (SOARecord) r;
             }
 
             rrset.addRR(r);
@@ -342,7 +380,7 @@ public class Zone implements Serializable, Iterable<RRset> {
         () -> {
           addRRsetWithoutLock(name, rrset);
           if (type == Type.SOA) {
-            SOA = (SOARecord) rrset.first();
+            soaRecord = (SOARecord) rrset.first();
           }
         });
   }
